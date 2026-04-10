@@ -423,6 +423,8 @@ void HudElem_ClearTypeSettings( game_hudelem_t *hud )
 	hud->elem.fromHeight = 0;
 	hud->elem.scaleStartTime = 0;
 	hud->elem.scaleTime = 0;
+	hud->elem.moveStartTime = 0;
+	hud->elem.moveTime = 0;
 	hud->elem.time = 0;
 	hud->elem.duration = 0;
 	hud->elem.value = 0;
