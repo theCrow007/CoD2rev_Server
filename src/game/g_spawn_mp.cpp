@@ -245,7 +245,7 @@ void G_DuplicateScriptFields( gentity_t *dest, const gentity_t *source )
 Scr_SetGenericField
 ===============
 */
-void Scr_SetGenericField( byte *b, int type, int ofs )
+void Scr_SetGenericField( byte *b, int type, ptrdiff_t ofs )
 {
 	vec3_t vec;
 
@@ -461,7 +461,7 @@ void Scr_AddEntity( gentity_t *ent )
 Scr_GetGenericField
 ===============
 */
-void Scr_GetGenericField( byte *b, int type, int ofs )
+void Scr_GetGenericField( byte *b, int type, ptrdiff_t ofs )
 {
 	unsigned short s, o;
 	gentity_t *e;

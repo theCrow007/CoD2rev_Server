@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <math.h>
 
 #include "com_math.h"
@@ -451,7 +452,7 @@ struct infoParm_t
 struct cspField_t
 {
 	const char *szName;
-	int iOffset;
+	ptrdiff_t iOffset;
 	int iFieldType;
 };
 

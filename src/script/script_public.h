@@ -1268,8 +1268,8 @@ void Scr_PrecacheAnimTrees(void *(*Alloc)(int), int user);
 scr_animtree_t Scr_FindAnimTree( const char *filename );
 
 qboolean Scr_IsInScriptMemory(const char *pos);
-void Scr_GetGenericField( byte *b, int type, int ofs );
-void Scr_SetGenericField(byte *data, int fieldtype, int offset);
+void Scr_GetGenericField( byte *b, int type, ptrdiff_t ofs );
+void Scr_SetGenericField(byte *data, int fieldtype, ptrdiff_t offset);
 unsigned int SL_TransferToCanonicalString(unsigned int index);
 unsigned int SL_GetCanonicalString(const char *str);
 

@@ -1,4 +1,5 @@
 #include "q_shared.h"
+#include <stdlib.h>
 
 vec2_t vec2_origin = {0, 0};
 vec3_t vec3_origin = {0, 0, 0};

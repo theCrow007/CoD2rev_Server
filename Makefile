@@ -2,8 +2,28 @@
 CC = gcc
 WINDRES=windres
 
-CFLAGS=-m32
-LFLAGS=-m32 -no-pie -ldl
+ARCH ?= x86
+HOST_UNAME := $(shell uname -s 2>/dev/null || echo unknown)
+
+ifeq ($(ARCH),x86)
+ARCH_CFLAGS=-m32
+ARCH_LFLAGS=-m32
+BIN_ARCH_SUFFIX=
+else ifeq ($(ARCH),x64)
+ifeq ($(HOST_UNAME),Darwin)
+ARCH_CFLAGS=-m64 -arch x86_64
+ARCH_LFLAGS=-m64 -arch x86_64
+else
+ARCH_CFLAGS=-m64
+ARCH_LFLAGS=-m64
+endif
+BIN_ARCH_SUFFIX=_x64
+else
+$(error Unsupported ARCH '$(ARCH)'; use x86 or x64)
+endif
+
+CFLAGS=$(ARCH_CFLAGS)
+LFLAGS=$(ARCH_LFLAGS) -no-pie -ldl
 
 ifeq ($(OS),Windows_NT)
 LLIBS=-static -mwindows -lstdc++ -lws2_32 -lwinmm
@@ -13,12 +33,12 @@ endif
 
 # Setup binary names.
 ifeq ($(OS),Windows_NT)
-BIN_NAME=cod2rev_win32
+BIN_NAME=cod2rev_win32$(BIN_ARCH_SUFFIX)
 LIB_NAME=libcod2rev
 BIN_EXT=.exe
 LIB_EXT=.dll
 else
-BIN_NAME=cod2rev_lnxded
+BIN_NAME=cod2rev_lnxded$(BIN_ARCH_SUFFIX)
 LIB_NAME=libcod2rev
 BIN_EXT=
 LIB_EXT=.so
@@ -26,7 +46,7 @@ endif
 
 # Setup directory names.
 BIN_DIR=bin
-OBJ_DIR=obj
+OBJ_DIR=obj/$(ARCH)
 SRC_DIR=src
 
 LINUX_DIR=$(SRC_DIR)/unix
