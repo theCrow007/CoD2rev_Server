@@ -1,0 +1,5 @@
+.git
+bin
+obj
+.docker-home
+.DS_Store
