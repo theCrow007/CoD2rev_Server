@@ -51005,8 +51005,8 @@ void __usercall SV_GetChallenge(long double a1@<st0>, int a2, int a3, int a4, in
   }
   if ( !(_BYTE)dword_842BB74 && dword_842BB70 != 1 )
   {
-    Com_Printf("Resolving %s\n", "cod2master.activision.com");
-    if ( !NET_StringToAdr("cod2master.activision.com", &dword_842BB70) )
+    Com_Printf("Resolving %s\n", "master.cod2x.me");
+    if ( !NET_StringToAdr("master.cod2x.me", &dword_842BB70) )
     {
       Com_Printf("Couldn't resolve address\n");
       return;
@@ -51015,7 +51015,7 @@ void __usercall SV_GetChallenge(long double a1@<st0>, int a2, int a3, int a4, in
     v8 = BigShort(dword_842BB78);
     Com_Printf(
       "%s resolved to %i.%i.%i.%i:%i\n",
-      "cod2master.activision.com",
+      "master.cod2x.me",
       (unsigned __int8)dword_842BB74,
       BYTE1(dword_842BB74),
       BYTE2(dword_842BB74),
@@ -55326,14 +55326,14 @@ int *sub_8094E38()
 
   if ( !dword_848B660 )
   {
-    Com_Printf("Resolving %s\n", "cod2master.activision.com");
-    if ( NET_StringToAdr("cod2master.activision.com", &dword_848B660) )
+    Com_Printf("Resolving %s\n", "master.cod2x.me");
+    if ( NET_StringToAdr("master.cod2x.me", &dword_848B660) )
     {
-      if ( !strstr(":", "cod2master.activision.com") )
+      if ( !strstr(":", "master.cod2x.me") )
         word_848B668 = BigShort(20710);
       v0 = BigShort(word_848B668);
       Com_Printf(
-        "cod2master.activision.com resolved to %i.%i.%i.%i:%i\n",
+        "master.cod2x.me resolved to %i.%i.%i.%i:%i\n",
         (unsigned __int8)byte_848B664,
         (unsigned __int8)byte_848B665,
         (unsigned __int8)byte_848B666,
@@ -55342,7 +55342,7 @@ int *sub_8094E38()
     }
     else
     {
-      Com_Printf("Couldn't resolve address: cod2master.activision.com\n");
+      Com_Printf("Couldn't resolve address: master.cod2x.me\n");
     }
   }
   return &dword_848B660;
@@ -55369,7 +55369,7 @@ void __cdecl SV_MasterHeartbeat(const char *a1)
       v2 = sub_8094E38();
       if ( *v2 != 1 )
       {
-        Com_Printf("Sending heartbeat to cod2master.activision.com\n");
+        Com_Printf("Sending heartbeat to master.cod2x.me\n");
         v1 = va("heartbeat %s\n", a1);
         NET_OutOfBandPrint(1, *v2, v2[1], v2[2], v2[3], v2[4], v1);
       }
@@ -55397,7 +55397,7 @@ void sub_8094FFC()
     v0 = sub_8094E38();
     if ( *v0 != 1 )
     {
-      Com_Printf("Sending gameCompleteStatus to cod2master.activision.com\n");
+      Com_Printf("Sending gameCompleteStatus to master.cod2x.me\n");
       sub_80936D4(*v0, v0[1], v0[2], v0[3], v0[4]);
     }
   }

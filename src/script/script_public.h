@@ -75,7 +75,7 @@ union VariableUnion
 	unsigned int stringValue;
 	const float *vectorValue;
 	const char *codePosValue;
-	unsigned int pointerValue;
+	uintptr_t pointerValue;
 	VariableStackBuffer *stackValue;
 	unsigned int entityOffset;
 };

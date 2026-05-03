@@ -216,12 +216,12 @@ typedef void (*xcommand_t)(void);
 #define	PORT_ANY -1
 
 // NERVE - SMF - wolf multiplayer master servers
-#define MASTER_SERVER_NAME "cod2master.activision.com"
+#define MASTER_SERVER_NAME "master.cod2x.me"
 #define HEARTBEAT_GAME "COD-2"
 #define HEARTBEAT_DEAD "flatline"
 #define PORT_MASTER 20710
 
-#define AUTHORIZE_SERVER_NAME "cod2master.activision.com"
+#define AUTHORIZE_SERVER_NAME "master.cod2x.me"
 #define PORT_AUTHORIZE 20700
 
 #define	HEARTBEAT_MSEC	180000

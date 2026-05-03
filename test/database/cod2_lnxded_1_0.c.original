@@ -51005,8 +51005,8 @@ void __usercall sub_808BE54(long double a1@<st0>, int a2, int a3, int a4, int a5
   }
   if ( !(_BYTE)dword_842BB74 && dword_842BB70 != 1 )
   {
-    sub_8060B2C("Resolving %s\n", "cod2master.activision.com");
-    if ( !sub_806C750("cod2master.activision.com", &dword_842BB70) )
+    sub_8060B2C("Resolving %s\n", "master.cod2x.me");
+    if ( !sub_806C750("master.cod2x.me", &dword_842BB70) )
     {
       sub_8060B2C("Couldn't resolve address\n");
       return;
@@ -51015,7 +51015,7 @@ void __usercall sub_808BE54(long double a1@<st0>, int a2, int a3, int a4, int a5
     v8 = sub_80B4F9A(dword_842BB78);
     sub_8060B2C(
       "%s resolved to %i.%i.%i.%i:%i\n",
-      "cod2master.activision.com",
+      "master.cod2x.me",
       (unsigned __int8)dword_842BB74,
       BYTE1(dword_842BB74),
       BYTE2(dword_842BB74),
@@ -55326,14 +55326,14 @@ int *sub_8094E38()
 
   if ( !dword_848B660 )
   {
-    sub_8060B2C("Resolving %s\n", "cod2master.activision.com");
-    if ( sub_806C750("cod2master.activision.com", &dword_848B660) )
+    sub_8060B2C("Resolving %s\n", "master.cod2x.me");
+    if ( sub_806C750("master.cod2x.me", &dword_848B660) )
     {
-      if ( !strstr(":", "cod2master.activision.com") )
+      if ( !strstr(":", "master.cod2x.me") )
         word_848B668 = sub_80B4F9A(20710);
       v0 = sub_80B4F9A(word_848B668);
       sub_8060B2C(
-        "cod2master.activision.com resolved to %i.%i.%i.%i:%i\n",
+        "master.cod2x.me resolved to %i.%i.%i.%i:%i\n",
         (unsigned __int8)byte_848B664,
         (unsigned __int8)byte_848B665,
         (unsigned __int8)byte_848B666,
@@ -55342,7 +55342,7 @@ int *sub_8094E38()
     }
     else
     {
-      sub_8060B2C("Couldn't resolve address: cod2master.activision.com\n");
+      sub_8060B2C("Couldn't resolve address: master.cod2x.me\n");
     }
   }
   return &dword_848B660;
@@ -55369,7 +55369,7 @@ void __cdecl sub_8094F02(const char *a1)
       v2 = sub_8094E38();
       if ( *v2 != 1 )
       {
-        sub_8060B2C("Sending heartbeat to cod2master.activision.com\n");
+        sub_8060B2C("Sending heartbeat to master.cod2x.me\n");
         v1 = sub_80B59CE("heartbeat %s\n", a1);
         sub_806C40C(1, *v2, v2[1], v2[2], v2[3], v2[4], v1);
       }
@@ -55397,7 +55397,7 @@ void sub_8094FFC()
     v0 = sub_8094E38();
     if ( *v0 != 1 )
     {
-      sub_8060B2C("Sending gameCompleteStatus to cod2master.activision.com\n");
+      sub_8060B2C("Sending gameCompleteStatus to master.cod2x.me\n");
       sub_80936D4(*v0, v0[1], v0[2], v0[3], v0[4]);
     }
   }

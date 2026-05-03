@@ -781,6 +781,7 @@ sval_u node0()
 	sval_u result;
 
 	result.node = Scr_AllocNode(1);
+	result.node[0].node = NULL;
 	result.node[0].intValue = ENUM_NOP;
 
 	return result;
@@ -794,7 +795,20 @@ sval_u node1( int type, sval_u val1 )
 	result.node = Scr_AllocNode(2);
 
 	result.node[0].intValue = type;
-	result.node[1].node = val1.node;
+	result.node[1] = val1;
+
+	return result;
+}
+
+// Restored function
+sval_u node_pair( sval_u val1, sval_u val2 )
+{
+	sval_u result;
+
+	result.node = Scr_AllocNode(2);
+
+	result.node[0] = val1;
+	result.node[1] = val2;
 
 	return result;
 }
@@ -807,8 +821,8 @@ sval_u node2( int type, sval_u val1, sval_u val2 )
 	result.node = Scr_AllocNode(3);
 
 	result.node[0].intValue = type;
-	result.node[1].node = val1.node;
-	result.node[2].node = val2.node;
+	result.node[1] = val1;
+	result.node[2] = val2;
 
 	return result;
 }
@@ -821,9 +835,9 @@ sval_u node3( int type, sval_u val1, sval_u val2, sval_u val3 )
 	result.node = Scr_AllocNode(4);
 
 	result.node[0].intValue = type;
-	result.node[1].node = val1.node;
-	result.node[2].node = val2.node;
-	result.node[3].node = val3.node;
+	result.node[1] = val1;
+	result.node[2] = val2;
+	result.node[3] = val3;
 
 	return result;
 }
@@ -836,10 +850,10 @@ sval_u node4( int type, sval_u val1, sval_u val2, sval_u val3, sval_u val4 )
 	result.node = Scr_AllocNode(5);
 
 	result.node[0].intValue = type;
-	result.node[1].node = val1.node;
-	result.node[2].node = val2.node;
-	result.node[3].node = val3.node;
-	result.node[4].node = val4.node;
+	result.node[1] = val1;
+	result.node[2] = val2;
+	result.node[3] = val3;
+	result.node[4] = val4;
 
 	return result;
 }
@@ -852,11 +866,11 @@ sval_u node5( int type, sval_u val1, sval_u val2, sval_u val3, sval_u val4, sval
 	result.node = Scr_AllocNode(6);
 
 	result.node[0].intValue = type;
-	result.node[1].node = val1.node;
-	result.node[2].node = val2.node;
-	result.node[3].node = val3.node;
-	result.node[4].node = val4.node;
-	result.node[5].node = val5.node;
+	result.node[1] = val1;
+	result.node[2] = val2;
+	result.node[3] = val3;
+	result.node[4] = val4;
+	result.node[5] = val5;
 
 	return result;
 }
@@ -869,12 +883,12 @@ sval_u node6( sval_u val1, sval_u val2, sval_u val3, sval_u val4, sval_u val5, s
 	result.node = Scr_AllocNode(7);
 
 	result.node[0].intValue = ENUM_thread;
-	result.node[1].node = val1.node;
-	result.node[2].node = val2.node;
-	result.node[3].node = val3.node;
-	result.node[4].node = val4.node;
-	result.node[5].node = val5.node;
-	result.node[6].node = val6.node;
+	result.node[1] = val1;
+	result.node[2] = val2;
+	result.node[3] = val3;
+	result.node[4] = val4;
+	result.node[5] = val5;
+	result.node[6] = val6;
 
 	return result;
 }
@@ -887,13 +901,13 @@ sval_u node7( sval_u val1, sval_u val2, sval_u val3, sval_u val4, sval_u val5, s
 	result.node = Scr_AllocNode(8);
 
 	result.node[0].intValue = ENUM_if_else;
-	result.node[1].node = val1.node;
-	result.node[2].node = val2.node;
-	result.node[3].node = val3.node;
-	result.node[4].node = val4.node;
-	result.node[5].node = val5.node;
-	result.node[6].node = val6.node;
-	result.node[7].node = val7.node;
+	result.node[1] = val1;
+	result.node[2] = val2;
+	result.node[3] = val3;
+	result.node[4] = val4;
+	result.node[5] = val5;
+	result.node[6] = val6;
+	result.node[7] = val7;
 
 	return result;
 }
@@ -906,14 +920,14 @@ sval_u node8( sval_u val1, sval_u val2, sval_u val3, sval_u val4, sval_u val5, s
 	result.node = Scr_AllocNode(9);
 
 	result.node[0].intValue = ENUM_for;
-	result.node[1].node = val1.node;
-	result.node[2].node = val2.node;
-	result.node[3].node = val3.node;
-	result.node[4].node = val4.node;
-	result.node[5].node = val5.node;
-	result.node[6].node = val6.node;
-	result.node[7].node = val7.node;
-	result.node[8].node = val8.node;
+	result.node[1] = val1;
+	result.node[2] = val2;
+	result.node[3] = val3;
+	result.node[4] = val4;
+	result.node[5] = val5;
+	result.node[6] = val6;
+	result.node[7] = val7;
+	result.node[8] = val8;
 
 	return result;
 }
@@ -926,8 +940,8 @@ sval_u linked_list_end( sval_u val1 )
 
 	node = Scr_AllocNode(2);
 
-	node[0].node = val1.node;
-	node[1].stringValue = 0;
+	node[0] = val1;
+	node[1].node = NULL;
 	result.node = Scr_AllocNode(2);
 	result.node[0].node = node;
 	result.node[1].node = node;
@@ -957,7 +971,7 @@ sval_u append_node( sval_u val1, sval_u val2 )
 	node = Scr_AllocNode(2);
 
 	node[0] = val2;
-	node[1].stringValue = 0;
+	node[1].node = NULL;
 
 	val1.node[1].node[1].node = node;
 	val1.node[1].node = node;
@@ -2333,7 +2347,7 @@ yyreduce:
 			switch ( yyn )
 			{
 			case 1:
-				yaccResult = node1(yyvsp[-1].val.type, yyvsp->val);// node2_
+				yaccResult = node_pair(yyvsp[-1].val, yyvsp->val);// node2_
 				break;
 			case 2:
 				yaccResult = node1(ENUM_expression, yyvsp->val);// node1
@@ -2867,27 +2881,27 @@ yyreduce:
 			case 111:
 			case 123:
 				valstack[4].sourcePosValue = yyvsp->pos;
-				valstack[5] = node1(yyvsp->val.type, valstack[4]);
+				valstack[5] = node_pair(yyvsp->val, valstack[4]);
 				yyval.val = prepend_node(valstack[5], yyvsp[-2].val);
 				break;
 			case 112:
 			case 124:
 				valstack[3].sourcePosValue = yyvsp->pos;
 				valstack[5] = node0();
-				valstack[4] = node1(yyvsp->val.type, valstack[3]);
+				valstack[4] = node_pair(yyvsp->val, valstack[3]);
 				yyval.val = prepend_node(valstack[4], valstack[5]);
 				break;
 			case 115:
 				valstack[5].sourcePosValue = yyvsp->pos;
 				valstack[4].stringValue = LowerCase(yyvsp->val.stringValue);
 				yyvsp->val = valstack[4];
-				valstack[3] = node1(valstack[4].type, valstack[5]);
+				valstack[3] = node_pair(valstack[4], valstack[5]);
 				yyval.val = append_node(yyvsp[-2].val, valstack[3]);
 				break;
 			case 116:
 				yyvsp->val.stringValue = LowerCase(yyvsp->val.stringValue);
 				valstack[5].sourcePosValue = yyvsp->pos;
-				valstack[4] = node1(yyvsp->val.type, valstack[5]);
+				valstack[4] = node_pair(yyvsp->val, valstack[5]);
 				valstack[3] = node0();
 				valstack[2] = linked_list_end(valstack[3]);
 				yyval.val = append_node(valstack[2], valstack[4]);
@@ -2896,14 +2910,14 @@ yyreduce:
 				valstack[5].sourcePosValue = yyvsp->pos;
 				valstack[4].stringValue = LowerCase(yyvsp->val.stringValue);
 				yyvsp->val = valstack[4];
-				valstack[3] = node1(valstack[4].type, valstack[5]);
+				valstack[3] = node_pair(valstack[4], valstack[5]);
 				yyval.val = append_node(yyvsp[-2].val, valstack[3]);
 				break;
 			case 120:
 			case 122:
 				valstack[5].sourcePosValue = yyvsp->pos;
 				valstack[4] = yyvsp->val;
-				valstack[3] = node1(valstack[4].type, valstack[5]);
+				valstack[3] = node_pair(valstack[4], valstack[5]);
 				valstack[2] = node0();
 				valstack[1] = linked_list_end(valstack[2]);
 				yyval.val = append_node(valstack[1], valstack[3]);
@@ -2911,7 +2925,7 @@ yyreduce:
 			case 121:
 				valstack[5].sourcePosValue = yyvsp->pos;
 				valstack[4] = yyvsp->val;
-				valstack[3] = node1(valstack[4].type, valstack[5]);
+				valstack[3] = node_pair(valstack[4], valstack[5]);
 				yyval.val = append_node(yyvsp[-2].val, valstack[3]);
 				break;
 			case 125:
