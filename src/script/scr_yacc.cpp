@@ -772,7 +772,7 @@ FILE* yy_stdout()
 // Restored function
 sval_u* Scr_AllocNode( int size )
 {
-	return (sval_u *)Hunk_AllocateTempMemoryHighInternal( sizeof( sval_u* ) * size );
+	return (sval_u *)Hunk_AllocateTempMemoryHighInternal( sizeof( sval_u ) * size );
 }
 
 // Decomp Status: Tested, Completed
@@ -2192,12 +2192,12 @@ yysetstate:
 			}
 
 			// YYSTACK_RELOCATE (yyss_alloc, yyss);
-			s = sizeof(short) * yystacksize;
+			s = sizeof(short) * yysize;
 			yyss = (short *)alloca(s);
 			memcpy(yyss, yyss1, s);
 
 			// YYSTACK_RELOCATE (yyvs_alloc, yyvs);
-			s = sizeof(stype_t) * yystacksize;
+			s = sizeof(stype_t) * yysize;
 			yyvs = (stype_t *)alloca(s);
 			memcpy(yyvs, yyvs1, s);
 
