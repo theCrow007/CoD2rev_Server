@@ -173,11 +173,11 @@ Scr_ReadCodePos
 */
 const char* Scr_ReadCodePos( const char **pos )
 {
-	const char *value;
+	uint32_t value;
 	memcpy(&value, *pos, sizeof(value));
-	*pos += sizeof(const char *);
+	*pos += sizeof(value);
 
-	return value;
+	return &scrVarPub.programBuffer[value];
 }
 
 /*
@@ -4792,7 +4792,7 @@ loop_dec_top:
 
 		case OP_endswitch:
 			gCaseCount = Scr_ReadUnsignedShort(&pos);
-			pos += gCaseCount * (sizeof(unsigned int) + sizeof(const char *));
+			pos += gCaseCount * (sizeof(unsigned int) + sizeof(uint32_t));
 			continue;
 
 		case OP_vector:

@@ -7,7 +7,22 @@
 scrCompilePub_t scrCompilePub;
 scrCompileGlob_t scrCompileGlob;
 
-static const size_t SWITCH_CASE_ENTRY_SIZE = sizeof(unsigned int) + sizeof(const char *);
+static const size_t CODEPOS_OPERAND_SIZE = sizeof(uint32_t);
+static const size_t SWITCH_CASE_ENTRY_SIZE = sizeof(unsigned int) + CODEPOS_OPERAND_SIZE;
+
+static uint32_t Scr_CodePosToOffset(const char *pos)
+{
+	uintptr_t rawPos = (uintptr_t)pos;
+
+	if ( rawPos == FUNC_SCOPE_LOCAL || rawPos == FUNC_SCOPE_FAR )
+		return (uint32_t)rawPos;
+
+	assert(scrVarPub.programBuffer);
+	assert(pos >= scrVarPub.programBuffer);
+	assert(pos - scrVarPub.programBuffer <= UINT32_MAX);
+
+	return (uint32_t)(pos - scrVarPub.programBuffer);
+}
 
 /*
 ============
@@ -1150,8 +1165,8 @@ EmitCodepos
 */
 void EmitCodepos( const char *pos )
 {
-	scrCompileGlob.codePos = (byte *)TempMallocAlign( sizeof( const char * ) );
-	*(const char **)scrCompileGlob.codePos = pos;
+	scrCompileGlob.codePos = (byte *)TempMallocAlign( CODEPOS_OPERAND_SIZE );
+	*(uint32_t *)scrCompileGlob.codePos = Scr_CodePosToOffset(pos);
 }
 
 /*
@@ -1228,8 +1243,8 @@ void EmitUnsignedUnaligned( unsigned int value )
 
 void EmitCodeposUnaligned( const char *pos )
 {
-	scrCompileGlob.codePos = (byte *)TempMalloc( sizeof( const char * ) );
-	*(const char **)scrCompileGlob.codePos = pos;
+	scrCompileGlob.codePos = (byte *)TempMalloc( CODEPOS_OPERAND_SIZE );
+	*(uint32_t *)scrCompileGlob.codePos = Scr_CodePosToOffset(pos);
 }
 
 /*
@@ -2813,7 +2828,7 @@ unsigned int SpecifyThreadPosition( unsigned int posId, unsigned int name, unsig
 	if ( pos.type == VAR_UNDEFINED )
 	{
 		pos.type = type;
-		pos.u.intValue = 0;
+		pos.u.codePosValue = NULL;
 
 		SetNewVariableValue(id, &pos);
 		return id;
@@ -2870,12 +2885,12 @@ void LinkThread( unsigned int threadCountId, VariableValue *pos, bool allowFarCa
 			CompileError2(value->codePosValue, "unknown function");
 		}
 
-		if ( !allowFarCall && *(intptr_t *)value->codePosValue == FUNC_SCOPE_FAR )
+		if ( !allowFarCall && *(uint32_t *)value->codePosValue == FUNC_SCOPE_FAR )
 		{
 			CompileError2(value->codePosValue, "unknown function");
 		}
 
-		*(const char **)value->codePosValue = pos->u.codePosValue;
+		*(uint32_t *)value->codePosValue = Scr_CodePosToOffset(pos->u.codePosValue);
 	}
 }
 
