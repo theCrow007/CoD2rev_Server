@@ -1,5 +1,6 @@
 #include "../qcommon/qcommon.h"
 #include "g_shared.h"
+#include "g_scr_mover_times.h"
 
 #define X 0
 #define Y 1
@@ -618,7 +619,7 @@ void ScriptMover_SetupMoveSpeed( trajectory_t *pTr, const float *vSpeed, float f
 	if ( fAccelTime == 0 && fDecelTime == 0 )
 	{
 		pTr->trTime = level.time;
-		pTr->trDuration = fTotalTime * 1000;
+		pTr->trDuration = ScriptMover_TimeToMsec(fTotalTime);
 
 		*pfMidTime = fTotalTime;
 		*pfDecelTime = 0;
@@ -646,7 +647,7 @@ void ScriptMover_SetupMoveSpeed( trajectory_t *pTr, const float *vSpeed, float f
 		if ( *pfMidTime == 0 )
 		{
 			pTr->trTime = level.time;
-			pTr->trDuration = *pfDecelTime * 1000;
+			pTr->trDuration = ScriptMover_TimeToMsec(*pfDecelTime);
 
 			VectorCopy(vCurrPos, pTr->trBase);
 			VectorCopy(vSpeed, pTr->trDelta);
@@ -657,7 +658,7 @@ void ScriptMover_SetupMoveSpeed( trajectory_t *pTr, const float *vSpeed, float f
 		else
 		{
 			pTr->trTime = level.time;
-			pTr->trDuration = *pfMidTime * 1000;
+			pTr->trDuration = ScriptMover_TimeToMsec(*pfMidTime);
 
 			VectorCopy(vCurrPos, pTr->trBase);
 			VectorCopy(vSpeed, pTr->trDelta);
@@ -669,7 +670,7 @@ void ScriptMover_SetupMoveSpeed( trajectory_t *pTr, const float *vSpeed, float f
 	else
 	{
 		pTr->trTime = level.time;
-		pTr->trDuration = fAccelTime * 1000;
+		pTr->trDuration = ScriptMover_TimeToMsec(fAccelTime);
 
 		VectorCopy(vCurrPos, pTr->trBase);
 		VectorCopy(vSpeed, pTr->trDelta);
@@ -691,7 +692,7 @@ void ScriptMover_SetupMoveSpeed( trajectory_t *pTr, const float *vSpeed, float f
 		tr.trType = TR_DECCELERATE;
 		tr.trTime = level.time;
 
-		tr.trDuration = *pfDecelTime * 1000;
+		tr.trDuration = ScriptMover_TimeToMsec(*pfDecelTime);
 
 		VectorCopy(vPos2, tr.trBase);
 		VectorCopy(vSpeed, tr.trDelta);
@@ -726,7 +727,7 @@ void ScriptMover_SetupMove( trajectory_t *pTr, const vec3_t vPos, float fTotalTi
 	if ( fAccelTime == 0 && fDecelTime == 0 )
 	{
 		pTr->trTime = level.time;
-		pTr->trDuration = fTotalTime * 1000;
+		pTr->trDuration = ScriptMover_TimeToMsec(fTotalTime);
 
 		*pfMidTime = fTotalTime;
 		*pfDecelTime = 0;
@@ -760,7 +761,7 @@ void ScriptMover_SetupMove( trajectory_t *pTr, const vec3_t vPos, float fTotalTi
 		if ( *pfMidTime == 0 )
 		{
 			pTr->trTime = level.time;
-			pTr->trDuration = *pfDecelTime * 1000;
+			pTr->trDuration = ScriptMover_TimeToMsec(*pfDecelTime);
 
 			VectorCopy(vCurrPos, pTr->trBase);
 			VectorCopy(vMaxSpeed, pTr->trDelta);
@@ -771,7 +772,7 @@ void ScriptMover_SetupMove( trajectory_t *pTr, const vec3_t vPos, float fTotalTi
 		else
 		{
 			pTr->trTime = level.time;
-			pTr->trDuration = *pfMidTime * 1000;
+			pTr->trDuration = ScriptMover_TimeToMsec(*pfMidTime);
 
 			VectorCopy(vCurrPos, pTr->trBase);
 			VectorScale(vMaxSpeed, *pfMidTime, vMove);
@@ -785,7 +786,7 @@ void ScriptMover_SetupMove( trajectory_t *pTr, const vec3_t vPos, float fTotalTi
 	else
 	{
 		pTr->trTime = level.time;
-		pTr->trDuration = fAccelTime * 1000;
+		pTr->trDuration = ScriptMover_TimeToMsec(fAccelTime);
 
 		VectorCopy(vCurrPos, pTr->trBase);
 		VectorCopy(vMaxSpeed, pTr->trDelta);
@@ -811,7 +812,7 @@ qboolean ScriptMover_UpdateMove( trajectory_t *pTr, vec3_t vCurrPos, float fSpee
                                  const vec3_t vPos1, const vec3_t vPos2, const vec3_t vPos3 )
 {
 	vec3_t vMove;
-	int trDuration = fMidTime * 1000;
+	int trDuration = ScriptMover_TimeToMsec(fMidTime);
 
 	if ( pTr->trType == TR_ACCELERATE && trDuration > 0 )
 	{
@@ -833,7 +834,7 @@ qboolean ScriptMover_UpdateMove( trajectory_t *pTr, vec3_t vCurrPos, float fSpee
 	if ( (pTr->trType == TR_ACCELERATE && trDuration <= 0 || pTr->trType == TR_LINEAR_STOP) && fDecelTime > 0 )
 	{
 		pTr->trTime = level.time;
-		pTr->trDuration = fDecelTime * 1000;
+		pTr->trDuration = ScriptMover_TimeToMsec(fDecelTime);
 
 		VectorCopy(vPos2, pTr->trBase);
 		VectorSubtract(vPos3, vPos2, vMove);
@@ -919,7 +920,7 @@ void ScriptMover_GravityMove( gentity_t *mover, const vec3_t velocity, float tot
 	assert(!IS_NAN((velocity)[0]) && !IS_NAN((velocity)[1]) && !IS_NAN((velocity)[2]));
 
 	mover->s.pos.trTime = level.time;
-	mover->s.pos.trDuration = totalTime * 1000;
+	mover->s.pos.trDuration = ScriptMover_TimeToMsec(totalTime);
 
 	VectorCopy(mover->r.currentOrigin, mover->s.pos.trBase);
 	VectorCopy(velocity, mover->s.pos.trDelta);
