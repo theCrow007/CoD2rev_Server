@@ -2206,14 +2206,14 @@ yysetstate:
 			}
 
 			// YYSTACK_RELOCATE (yyss_alloc, yyss);
-			s = sizeof(short) * yysize;
+			s = sizeof(short) * yystacksize;
 			yyss = (short *)alloca(s);
-			memcpy(yyss, yyss1, s);
+			memcpy(yyss, yyss1, sizeof(short) * yysize);
 
 			// YYSTACK_RELOCATE (yyvs_alloc, yyvs);
-			s = sizeof(stype_t) * yysize;
+			s = sizeof(stype_t) * yystacksize;
 			yyvs = (stype_t *)alloca(s);
-			memcpy(yyvs, yyvs1, s);
+			memcpy(yyvs, yyvs1, sizeof(stype_t) * yysize);
 
 			yyvsp = &yyvs[yysize - 1];
 			yyssp = &yyss[yysize - 1];
