@@ -2,10 +2,101 @@
 
 ## About
 
-This is a reverse-engenerred Call of Duty 2 dedicated server code.
+This is a reverse-engineered Call of Duty 2 dedicated server codebase.
 It fixes several bugs in the original binaries and allows developers to extend server functionality.
 
-## Credits:
+The server can be built as either x86 or x64. The x64 build includes CoD2x-compatible server behavior for recent zPAM versions while keeping a runtime option for older vanilla clients.
+
+## Build
+
+Linux x86:
+
+```bash
+make ARCH=x86
+```
+
+Linux x64:
+
+```bash
+make ARCH=x64
+```
+
+The x64/CoD2x HTTP and websocket support links OpenSSL. On Debian/Ubuntu/WSL install it with:
+
+```bash
+sudo apt update
+sudo apt install -y libssl-dev
+```
+
+If you changed shared headers such as `src/universal/q_shared.h`, force stale objects to rebuild:
+
+```bash
+rm -f obj/x86/common.o obj/x64/common.o bin/cod2rev_lnxded bin/cod2rev_lnxded_x64
+make ARCH=x64
+```
+
+## Running
+
+Use `run_bin.sh` for local launches. Defaults are x64, latest advertised protocol, and legacy protocol compatibility enabled.
+
+```bash
+./run_bin.sh
+```
+
+Common options:
+
+```bash
+# Run x64 with latest protocol advertised, allowing older clients.
+ARCH=x64 PROTOCOL=119 LEGACY_PROTOCOLS=1 ./run_bin.sh
+
+# Run x86.
+ARCH=x86 ./run_bin.sh
+
+# Advertise old protocol and only accept that exact protocol.
+PROTOCOL=115 LEGACY_PROTOCOLS=0 ./run_bin.sh
+
+# Latest protocol only.
+PROTOCOL=119 LEGACY_PROTOCOLS=0 ./run_bin.sh
+```
+
+The runtime protocol controls are:
+
+- `protocol`: protocol advertised in server info. Defaults to `119`.
+- `sv_protocolLegacyMode`: when `1`, accept clients using protocol `115..119`; when `0`, only accept clients matching `protocol`.
+
+The compile-time `PROTOCOL_VERSION` stays at `115` for compatibility code paths. Do not change it just to advertise a newer protocol.
+
+## zPAM 4.06
+
+zPAM 4.06 expects CoD2x-style server behavior and reads the `shortversion` dvar to detect old servers. This build advertises `PRODUCT_VERSION` as `1.4.6.5` while keeping per-client protocol compatibility.
+
+Install the zPAM files into the game `main` folder:
+
+```text
+main/zpam406.iwd
+main/zpam_maps_v7.iwd
+main/server.cfg
+```
+
+Run without a mod folder:
+
+```bash
+MODE=zpam ARCH=x64 PROTOCOL=119 LEGACY_PROTOCOLS=1 ./run_bin.sh
+```
+
+Fast download defaults are enabled for zPAM:
+
+```cfg
+set fs_game ""
+set sv_wwwDownload "1"
+set sv_wwwBaseURL "http://cod2x.me/zpam"
+```
+
+You can still override `sv_wwwBaseURL` in `server.cfg` if you host the files yourself.
+
+For stock 1.3 maps, zPAM warns about old map versions. Use the fixed maps from `zpam_maps_v7.iwd`, for example `mp_toujane_fix`.
+
+## Credits
 
 id Software
 
@@ -14,3 +105,7 @@ Activision / Infinity Ward
 CoD4x Server: https://github.com/callofduty4x/CoD4x_Server
 
 OpenBO2: https://github.com/builtbyxeno/OpenBO2
+
+CoD2: https://github.com/callofduty2x/CoD2x
+
+zPAM https://github.com/eyza-cod2/zpam3

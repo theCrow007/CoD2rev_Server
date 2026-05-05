@@ -3,6 +3,10 @@
 
 #include "../qcommon/qcommon.h"
 #include "../game/g_shared.h"
+#include "cod2x_state.hpp"
+#include "gsc_http.hpp"
+#include "gsc_match.hpp"
+#include "gsc_websocket.hpp"
 
 #define COD2_MAX_STRINGLENGTH MAX_STRING_CHARS
 
@@ -150,6 +154,10 @@ void SV_CheckTimeouts_libcod( void );
 void SV_BotUserMove_libcod(client_t *client);
 void SV_ClientThink_libcod(client_t *cl, usercmd_t *cmd);
 const char* NET_AdrToStringNoPort( netadr_t a );
+void Cod2x_Frame();
+void Cod2x_Shutdown();
+bool Cod2x_BeforeMapChangeOrRestart(bool shutdown);
+void Cod2x_OnStartGameType();
 
 void PM_ProjectVelocity(const float *velIn, const float *normal, float *velOut);
 void SV_AddLibcodCommands();

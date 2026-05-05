@@ -286,6 +286,25 @@ void gsc_player_stance_get(scr_entref_t id)
 		stackPushString("stand");
 }
 
+void gsc_player_stance_get_cod2x(scr_entref_t id)
+{
+	if (id.entnum >= MAX_CLIENTS)
+	{
+		stackError("gsc_player_stance_get_cod2x() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	playerState_t *ps = SV_GameClientNum(id.entnum);
+
+	if (ps->pm_flags & PMF_DUCKED)
+		stackPushString("crouch");
+	else if (ps->pm_flags & PMF_PRONE)
+		stackPushString("prone");
+	else
+		stackPushString("stand");
+}
+
 void gsc_player_stance_set(scr_entref_t id)
 {
 	const char *stance;
@@ -365,6 +384,73 @@ void gsc_player_getip(scr_entref_t id)
 	}
 
 	stackPushString(tmp);
+}
+
+void gsc_player_gethwid(scr_entref_t id)
+{
+	if (id.entnum >= MAX_CLIENTS)
+	{
+		stackError("gsc_player_gethwid() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	if (!cod2x_clients[id.entnum].hasCod2x)
+	{
+		stackPushString("");
+		return;
+	}
+
+	stackPushString(cod2x_clients[id.entnum].hwid2);
+}
+
+void gsc_player_getcdkeyhash(scr_entref_t id)
+{
+	if (id.entnum >= MAX_CLIENTS)
+	{
+		stackError("gsc_player_getcdkeyhash() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id.entnum];
+	stackPushString(client->clientPBguid);
+}
+
+void gsc_player_getauthorizationstatus(scr_entref_t id)
+{
+	if (id.entnum >= MAX_CLIENTS)
+	{
+		stackError("gsc_player_getauthorizationstatus() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id.entnum];
+	stackPushString(client->PBguid);
+}
+
+void gsc_player_getvieworigin(scr_entref_t id)
+{
+	if (id.entnum >= MAX_CLIENTS)
+	{
+		stackError("gsc_player_getvieworigin() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *entity = &g_entities[id.entnum];
+
+	if (entity->client == NULL)
+	{
+		stackError("gsc_player_getvieworigin() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	vec3_t origin;
+	G_GetPlayerViewOrigin(entity, origin);
+	stackPushVector(origin);
 }
 
 void gsc_player_getping(scr_entref_t id)

@@ -23,12 +23,13 @@ $(error Unsupported ARCH '$(ARCH)'; use x86 or x64)
 endif
 
 CFLAGS=$(ARCH_CFLAGS)
+CXXFLAGS=$(CFLAGS) -std=c++17
 LFLAGS=$(ARCH_LFLAGS) -no-pie -ldl
 
 ifeq ($(OS),Windows_NT)
 LLIBS=-static -mwindows -lstdc++ -lws2_32 -lwinmm
 else
-LLIBS=-lm -lpthread -lstdc++
+LLIBS=-lm -lpthread -lstdc++ -lssl -lcrypto
 endif
 
 # Setup binary names.
@@ -99,6 +100,9 @@ endif
 LIBCOD_DIR=$(SRC_DIR)/libcod
 LIBCOD_SOURCES=$(wildcard $(LIBCOD_DIR)/*.cpp)
 LIBCOD_OBJ=$(patsubst $(LIBCOD_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(LIBCOD_SOURCES))
+MONGOOSE_DIR=$(SRC_DIR)/libcod/mongoose
+MONGOOSE_SOURCES=$(wildcard $(MONGOOSE_DIR)/*.c)
+MONGOOSE_OBJ=$(patsubst $(MONGOOSE_DIR)/%.c,$(OBJ_DIR)/%.o,$(MONGOOSE_SOURCES))
 ifeq ($(WITH_SQLITE),true)
 SQLITE_DIR=$(SRC_DIR)/libcod/sqlite
 SQLITE_SOURCES=$(wildcard $(SQLITE_DIR)/*.c)
@@ -147,7 +151,7 @@ ZLIB_OBJ=$(patsubst $(ZLIB_DIR)/%.c,$(OBJ_DIR)/%.o,$(ZLIB_SOURCES))
 cod2rev: mkdir $(TARGET)
     $(TARGET): \
 	$(BGAME_OBJ) $(GAME_OBJ) $(QCOMMON_OBJ) $(SCR_OBJ) $(SERVER_OBJ) $(STRINGED_OBJ) $(UNIVERSAL_OBJ) $(XANIM_OBJ) \
-	$(LINUX_OBJ) $(WIN32_OBJ) $(WIN32_RES_OBJ) $(ZLIB_OBJ) $(LIBCOD_OBJ) $(SQLITE_OBJ)
+	$(LINUX_OBJ) $(WIN32_OBJ) $(WIN32_RES_OBJ) $(ZLIB_OBJ) $(LIBCOD_OBJ) $(MONGOOSE_OBJ) $(SQLITE_OBJ)
 	$(CC) $(LFLAGS) -o $@ $^ $(LLIBS)
 
 ifeq ($(OS),Windows_NT)
@@ -168,52 +172,52 @@ endif
 # A rule to build bgame source code.
 $(OBJ_DIR)/%.o: $(BGAME_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build script source code.
 $(OBJ_DIR)/%.o: $(SCR_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build game source code.
 $(OBJ_DIR)/%.o: $(GAME_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build qcommon source code.
 $(OBJ_DIR)/%.o: $(QCOMMON_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build server source code.
 $(OBJ_DIR)/%.o: $(SERVER_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build stringed source code.
 $(OBJ_DIR)/%.o: $(STRINGED_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build universal source code.
 $(OBJ_DIR)/%.o: $(UNIVERSAL_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build xanim source code.
 $(OBJ_DIR)/%.o: $(XANIM_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
 
 # A rule to build linux source code.
 $(OBJ_DIR)/%.o: $(LINUX_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) -o $@ $<
 
 # A rule to build win32 source code.
 $(OBJ_DIR)/%.o: $(WIN32_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) -o $@ $<
 
 # A rule to build win32 resource files.
 $(OBJ_DIR)/%.res: $(WIN32_DIR)/%.rc
@@ -228,7 +232,12 @@ $(OBJ_DIR)/%.o: $(ZLIB_DIR)/%.c
 # A rule to build libcod source code.
 $(OBJ_DIR)/%.o: $(LIBCOD_DIR)/%.cpp
 	@echo $(CC)  $@
-	@$(CC) -c $(CFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+	@$(CC) -c $(CXXFLAGS) $(LIBCOD_SETTINGS) -o $@ $<
+
+# A rule to build mongoose source code.
+$(OBJ_DIR)/%.o: $(MONGOOSE_DIR)/%.c
+	@echo $(CC)  $@
+	@$(CC) -c $(CFLAGS) -DMG_TLS=MG_TLS_OPENSSL -o $@ $<
 
 # A rule to build sqlite source code.
 $(OBJ_DIR)/%.o: $(SQLITE_DIR)/%.c

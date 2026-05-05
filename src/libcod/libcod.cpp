@@ -1,4 +1,5 @@
 #include "gsc.hpp"
+#include "match.hpp"
 
 #ifdef LIBCOD
 
@@ -47,6 +48,10 @@ void RegisterLibcodDvars()
 
 	g_fixedWeaponSpreads = Dvar_RegisterBool("g_fixedWeaponSpreads", false, DVAR_CHANGEABLE_RESET);
 	g_dropGrenadeOnDeath = Dvar_RegisterBool("g_dropGrenadeOnDeath", true, DVAR_CHANGEABLE_RESET);
+
+	Cod2x_RegisterDvars();
+	match_init();
+	gsc_websocket_init();
 }
 
 void InitLibcodCallbacks()

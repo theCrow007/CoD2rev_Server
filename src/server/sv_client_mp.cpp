@@ -493,19 +493,25 @@ SV_FreeClient
 */
 void SV_FreeClient( client_t *cl )
 {
+	int clientNum;
+
 	assert(cl->state > CS_ZOMBIE);
 	assert(cl - svs.clients >= 0 && cl - svs.clients < MAX_CLIENTS);
+	clientNum = cl - svs.clients;
 
 	// Kill any existing download
 	SV_CloseDownload(cl);
 
 	if ( SV_Loaded() )
 	{
-		ClientDisconnect(cl - svs.clients);
+		ClientDisconnect(clientNum);
 	}
 
-	SV_SetUserinfo(cl - svs.clients, NULL);
+	SV_SetUserinfo(clientNum, NULL);
 	SV_FreeClientScriptId(cl);
+#ifdef LIBCOD
+	Cod2x_ClearClientState(clientNum);
+#endif
 }
 
 /*
@@ -615,6 +621,13 @@ void SV_DirectConnect( netadr_t from )
 	int count;
 	int guid;
 	int ping;
+	int challengeIndex;
+#ifdef LIBCOD
+	int cod2xProtocol;
+	const char *cod2xHwid2;
+	bool cod2xRequired;
+	bool cod2xValidIdentity;
+#endif
 
 	Com_DPrintf("SV_DirectConnect()\n");
 	Q_strncpyz( userinfo, Cmd_Argv( 1 ), sizeof( userinfo ) );
@@ -623,16 +636,34 @@ void SV_DirectConnect( netadr_t from )
 	// NOTE TTimo: but we might need to store the protocol around for potential non http/ftp clients
 	version = atoi( Info_ValueForKey( userinfo, "protocol" ) );
 
-#if PROTOCOL_VERSION == 115 and defined LIBCOD
-	if ( version < 115 || version > 119)
-#else
-	if ( version != PROTOCOL_VERSION )
-#endif
+	if ( ( sv_protocolLegacyMode && sv_protocolLegacyMode->current.boolean && ( version < 115 || version > 119 ) )
+	        || ( ( !sv_protocolLegacyMode || !sv_protocolLegacyMode->current.boolean ) && version != sv_protocol->current.integer ) )
 	{
 		NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n", PRODUCT_VERSION) );
-		Com_DPrintf( "    rejected connect from protocol version %i (should be %i)\n", version, PROTOCOL_VERSION );
+		Com_DPrintf( "    rejected connect from protocol version %i (advertised %i, legacy mode %i)\n", version, sv_protocol->current.integer, sv_protocolLegacyMode ? sv_protocolLegacyMode->current.boolean : 0 );
 		return;
 	}
+
+#ifdef LIBCOD
+	cod2xProtocol = atoi( Info_ValueForKey( userinfo, "protocol_cod2x" ) );
+	cod2xHwid2 = Info_ValueForKey( userinfo, "cl_hwid2" );
+	cod2xRequired = sv_cod2xClientMode && sv_cod2xClientMode->current.integer == COD2X_CLIENT_REQUIRED;
+	cod2xValidIdentity = cod2xProtocol >= COD2X_VERSION_PROTOCOL && Cod2x_IsValidHwid2(cod2xHwid2);
+
+	if ( cod2xRequired && cod2xProtocol < COD2X_VERSION_PROTOCOL )
+	{
+		NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15" "CoD2x %i or newer is required\n", COD2X_VERSION_PROTOCOL) );
+		Com_DPrintf( "    rejected connect from missing/old CoD2x protocol %i (should be at least %i)\n", cod2xProtocol, COD2X_VERSION_PROTOCOL );
+		return;
+	}
+
+	if ( cod2xRequired && !Cod2x_IsValidHwid2(cod2xHwid2) )
+	{
+		NET_OutOfBandPrint( NS_SERVER, from, "error\n\x15You have invalid HWID2" );
+		Com_DPrintf( "    rejected connect from client without valid HWID2\n" );
+		return;
+	}
+#endif
 
 	challenge = atoi( Info_ValueForKey( userinfo, "challenge" ) );
 	qport = atoi( Info_ValueForKey( userinfo, "qport" ) );
@@ -656,6 +687,7 @@ void SV_DirectConnect( netadr_t from )
 
 	guid = 0;
 	ping = 0;
+	challengeIndex = -1;
 
 	// see if the challenge is valid (local clients don't need to challenge)
 	if ( !NET_IsLocalAddress( from ) )
@@ -667,6 +699,7 @@ void SV_DirectConnect( netadr_t from )
 				if ( challenge == svs.challenges[i].challenge )
 				{
 					guid = svs.challenges[i].guid;
+					challengeIndex = i;
 					break;
 				}
 			}
@@ -708,6 +741,27 @@ void SV_DirectConnect( netadr_t from )
 			}
 		}
 	}
+
+#ifdef LIBCOD
+	if ( cod2xValidIdentity )
+	{
+		guid = Cod2x_HwidHash(cod2xHwid2);
+
+		if ( SV_IsBannedGuid(guid) )
+		{
+			Com_Printf("rejected connection from permanently banned HWID %i\n", guid);
+			NET_OutOfBandPrint( NS_SERVER, from, "error\n\x15You are permanently banned from this server" );
+			return;
+		}
+
+		if ( SV_IsTempBannedGuid(guid) )
+		{
+			Com_Printf("rejected connection from temporarily banned HWID %i\n", guid);
+			NET_OutOfBandPrint( NS_SERVER, from, "error\n\x15You are temporarily banned from this server" );
+			return;
+		}
+	}
+#endif
 
 	newcl = &temp;
 	memset( newcl, 0, sizeof( client_t ) );
@@ -796,6 +850,11 @@ gotnewcl:
 	// save the challenge
 	newcl->challenge = challenge;
 	newcl->guid = guid;
+	if ( challengeIndex >= 0 )
+	{
+		I_strncpyz(newcl->PBguid, svs.challenges[challengeIndex].PBguid, sizeof(newcl->PBguid));
+		I_strncpyz(newcl->clientPBguid, svs.challenges[challengeIndex].clientPBguid, sizeof(newcl->clientPBguid));
+	}
 
 	// save the address
 	Netchan_Setup(NS_SERVER, &newcl->netchan, from, qport);
@@ -803,6 +862,10 @@ gotnewcl:
 	newcl->netchan.protocol = version;
 	extern int client_challenge_ping[MAX_CLIENTS];
 	client_challenge_ping[clientNum] = ping;
+	if ( cod2xValidIdentity )
+		Cod2x_SetClientState(clientNum, cod2xProtocol, cod2xHwid2);
+	else
+		Cod2x_ClearClientState(clientNum);
 #endif
 	// init the netchan queue
 	newcl->voicePacketCount = 0;
@@ -833,7 +896,8 @@ gotnewcl:
 	SV_UserinfoChanged( newcl );
 
 	// DHM - Nerve :: Clear out firstPing now that client is connected
-	svs.challenges[i].firstPing = 0;
+	if ( challengeIndex >= 0 )
+		svs.challenges[challengeIndex].firstPing = 0;
 
 	// send the connect packet to the client
 	NET_OutOfBandPrint( NS_SERVER, from, "connectResponse" );
@@ -926,10 +990,16 @@ void SV_AuthorizeIpPacket( netadr_t from )
 	r = SV_Cmd_Argv( 3 );
 
 #ifdef LIBCOD
+	I_strncpyz(svs.challenges[i].PBguid, r ? r : "", sizeof(svs.challenges[i].PBguid));
+	I_strncpyz(svs.challenges[i].clientPBguid, SV_Cmd_Argv( 5 ), sizeof(svs.challenges[i].clientPBguid));
+#endif
+
+#ifdef LIBCOD
 	if (sv_cracked->current.boolean)
 	{
 		s = "accept";
 		r = "KEY_IS_GOOD";
+		I_strncpyz(svs.challenges[i].PBguid, r, sizeof(svs.challenges[i].PBguid));
 	}
 #endif
 
@@ -1587,7 +1657,7 @@ gentity_t *SV_AddTestClient()
 	    "bot%d\\password\\%s\\protocol\\%d\"",
 	    botport,
 	    g_password->current.string,
-	    PROTOCOL_VERSION);
+	    sv_protocol->current.integer);
 
 	SV_Cmd_TokenizeString(userinfo);
 	memset(&adr, 0, sizeof(adr));

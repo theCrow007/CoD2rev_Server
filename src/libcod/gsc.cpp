@@ -1,4 +1,5 @@
 #include "gsc.hpp"
+#include "match.hpp"
 
 #ifdef LIBCOD
 
@@ -91,6 +92,19 @@ const char *stackGetParamTypeAsString(int param)
 
 scr_function_t scriptFunctions[] =
 {
+	{"http_fetch", gsc_http_fetch, 0},
+	{"matchUploadData", gsc_match_uploadData, 0},
+	{"matchSetData", gsc_match_setData, 0},
+	{"matchGetData", gsc_match_getData, 0},
+	{"matchRedownloadData", gsc_match_redownloadData, 0},
+	{"matchClearData", gsc_match_clearData, 0},
+	{"matchIsActivated", gsc_match_isActivated, 0},
+	{"matchCancel", gsc_match_cancel, 0},
+	{"matchFinish", gsc_match_finish, 0},
+	{"websocket_connect", gsc_websocket_connect, 0},
+	{"websocket_sendText", gsc_websocket_sendText, 0},
+	{"websocket_close", gsc_websocket_close, 0},
+
 #if LIBCOD_COMPILE_EXEC == 1
 	{"exec", gsc_exec, 0},
 	{"exec_async_create", gsc_exec_async_create, 0},
@@ -271,7 +285,9 @@ scr_method_t scriptMethods[] =
 #endif
 
 #if LIBCOD_COMPILE_PLAYER == 1
+	{"getIp", gsc_player_getip, 0},
 	{"getstance", gsc_player_stance_get, 0},
+	{"getStance", gsc_player_stance_get_cod2x, 0},
 	{"setstance", gsc_player_stance_set, 0},
 	{"setvelocity", gsc_player_velocity_set, 0},
 	{"addvelocity", gsc_player_velocity_add, 0},
@@ -288,6 +304,13 @@ scr_method_t scriptMethods[] =
 	{"fragbuttonpressed", gsc_player_button_frag, 0},
 	{"smokebuttonpressed", gsc_player_button_smoke, 0},
 	{"getip", gsc_player_getip, 0},
+	{"getHWID", gsc_player_gethwid, 0},
+	{"getCDKeyHash", gsc_player_getcdkeyhash, 0},
+	{"getAuthorizationStatus", gsc_player_getauthorizationstatus, 0},
+	{"getViewOrigin", gsc_player_getvieworigin, 0},
+	{"matchPlayerGetData", gsc_match_playerGetData, 0},
+	{"matchPlayerSetData", gsc_match_playerSetData, 0},
+	{"matchPlayerIsAllowed", gsc_match_playerIsAllowed, 0},
 	{"getping", gsc_player_getping, 0},
 	{"getspectatorclient", gsc_player_spectatorclient_get, 0},
 	{"clientcommand", gsc_player_clientcommand, 0},
@@ -316,6 +339,7 @@ scr_method_t scriptMethods[] =
 	{"ismantling", gsc_player_ismantling, 0},
 	{"isonladder", gsc_player_isonladder, 0},
 	{"isusingturret", gsc_player_isusingturret, 0},
+	{"isUsingTurret", gsc_player_isusingturret, 0},
 	{"isbot", gsc_player_isbot, 0},
 	{"disableitempickup", gsc_player_disableitempickup, 0},
 	{"enableitempickup", gsc_player_enableitempickup, 0},
@@ -609,6 +633,37 @@ uint64_t Sys_Milliseconds64(void)
 VariableValue* Scr_GetValue(unsigned int param)
 {
 	return &scrVmPub.top[int(-param)];
+}
+
+void Cod2x_Frame()
+{
+	gsc_http_frame();
+	match_frame();
+	gsc_websocket_frame();
+}
+
+void Cod2x_Shutdown()
+{
+	gsc_websocket_beforeMapChangeOrRestart(false, true, true);
+	match_shutdown();
+	gsc_http_shutdown();
+}
+
+bool Cod2x_BeforeMapChangeOrRestart(bool shutdown)
+{
+	if (!gsc_match_beforeMapChangeOrRestart(false, true, shutdown))
+		return false;
+
+	if (!gsc_websocket_beforeMapChangeOrRestart(false, true, shutdown))
+		return false;
+
+	return match_beforeMapChangeOrRestart(false, true, shutdown);
+}
+
+void Cod2x_OnStartGameType()
+{
+	match_onStartGameType();
+	gsc_match_onStartGameType();
 }
 
 #endif

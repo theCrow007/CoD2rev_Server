@@ -48,6 +48,8 @@ extern dvar_t *sv_allowAnonymous;
 extern dvar_t *sv_disableClientConsole;
 extern dvar_t *sv_voice;
 extern dvar_t *sv_packet_info;
+extern dvar_t *sv_protocol;
+extern dvar_t *sv_protocolLegacyMode;
 extern dvar_t *sv_paused;
 extern dvar_t *sv_fps;
 extern dvar_t *sv_cheats;

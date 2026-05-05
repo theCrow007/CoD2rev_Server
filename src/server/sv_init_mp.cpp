@@ -17,6 +17,8 @@ dvar_t *sv_floodProtect;
 dvar_t *sv_allowAnonymous;
 dvar_t *sv_showCommands;
 dvar_t *sv_disableClientConsole;
+dvar_t *sv_protocol;
+dvar_t *sv_protocolLegacyMode;
 dvar_t *sv_voice;
 dvar_t *sv_voiceQuality;
 dvar_t *sv_cheats;
@@ -71,7 +73,8 @@ void SV_InitDvar()
 	sv_gametype = Dvar_RegisterString("g_gametype", "dm", DVAR_SERVERINFO | DVAR_LATCH | DVAR_CHANGEABLE_RESET);
 
 	Dvar_RegisterString("sv_keywords", "", DVAR_SERVERINFO | DVAR_CHANGEABLE_RESET);
-	Dvar_RegisterInt("protocol", PROTOCOL_VERSION, PROTOCOL_VERSION, PROTOCOL_VERSION, DVAR_SERVERINFO | DVAR_ROM | DVAR_CHANGEABLE_RESET);
+	sv_protocol = Dvar_RegisterInt("protocol", 119, 115, 119, DVAR_ARCHIVE | DVAR_SERVERINFO | DVAR_CHANGEABLE_RESET);
+	sv_protocolLegacyMode = Dvar_RegisterBool("sv_protocolLegacyMode", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
 
 	sv_mapname = Dvar_RegisterString("mapname", "", DVAR_SERVERINFO | DVAR_ROM | DVAR_CHANGEABLE_RESET);
 	sv_privateClients = Dvar_RegisterInt("sv_privateClients", 0, 0, MAX_CLIENTS, DVAR_SERVERINFO | DVAR_CHANGEABLE_RESET);
@@ -128,8 +131,8 @@ void SV_InitDvar()
 	nextmap = Dvar_RegisterString("nextmap", "", DVAR_CHANGEABLE_RESET);
 	com_expectedHunkUsage = Dvar_RegisterInt("com_expectedHunkUsage", 0, 0, INT_MAX, DVAR_ROM | DVAR_CHANGEABLE_RESET);
 
-	sv_wwwDownload = Dvar_RegisterBool("sv_wwwDownload", false, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
-	sv_wwwBaseURL = Dvar_RegisterString("sv_wwwBaseURL", "", DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_wwwDownload = Dvar_RegisterBool("sv_wwwDownload", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_wwwBaseURL = Dvar_RegisterString("sv_wwwBaseURL", "http://cod2x.me/zpam", DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
 	sv_wwwDlDisconnected = Dvar_RegisterBool("sv_wwwDlDisconnected", false, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
 }
 
@@ -703,6 +706,9 @@ void SV_Shutdown( const char *finalmsg )
 
 	SV_RemoveOperatorCommands();
 	SV_MasterShutdown();
+#ifdef LIBCOD
+	Cod2x_Shutdown();
+#endif
 	SV_ShutdownGameProgs();
 
 	// drop all clients
@@ -861,6 +867,10 @@ void SV_SpawnServer( char *server )
 	Dvar_SetStringByName("mapname", server);
 
 	// shut down the existing game if it is running
+#ifdef LIBCOD
+	if ( !Cod2x_BeforeMapChangeOrRestart(false) )
+		return;
+#endif
 	SV_ShutdownGameProgs();
 
 	Com_Printf("------ Server Initialization ------\n");
@@ -960,6 +970,9 @@ void SV_SpawnServer( char *server )
 
 	// load and spawn all other entities
 	SV_InitGameProgs(savepersist);
+#ifdef LIBCOD
+	Cod2x_OnStartGameType();
+#endif
 
 	// run a few frames to allow everything to settle
 	for( i = 0; i < GAME_INIT_FRAMES; ++i )
