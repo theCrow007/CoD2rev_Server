@@ -24,12 +24,12 @@ endif
 
 CFLAGS=$(ARCH_CFLAGS)
 CXXFLAGS=$(CFLAGS) -std=c++17
-LFLAGS=$(ARCH_LFLAGS) -no-pie -ldl
+LFLAGS=$(ARCH_LFLAGS) -no-pie
 
 ifeq ($(OS),Windows_NT)
 LLIBS=-static -mwindows -lstdc++ -lws2_32 -lwinmm
 else
-LLIBS=-lm -lpthread -lstdc++ -lssl -lcrypto
+LLIBS=-lm -lpthread -lstdc++ -lssl -lcrypto -ldl
 endif
 
 # Setup binary names.
