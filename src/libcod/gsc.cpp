@@ -1,5 +1,6 @@
 #include "gsc.hpp"
 #include "match.hpp"
+#include "cod2rev_updater.hpp"
 
 #ifdef LIBCOD
 
@@ -637,6 +638,7 @@ VariableValue* Scr_GetValue(unsigned int param)
 
 void Cod2x_Frame()
 {
+	Cod2revUpdater_Frame();
 	gsc_http_frame();
 	match_frame();
 	gsc_websocket_frame();

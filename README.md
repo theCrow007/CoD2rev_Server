@@ -68,7 +68,11 @@ The compile-time `PROTOCOL_VERSION` stays at `115` for compatibility code paths.
 
 ## zPAM 4.06
 
-zPAM 4.06 expects CoD2x-style server behavior and reads the `shortversion` dvar to detect old servers. This build advertises `PRODUCT_VERSION` as `1.4.6.5` while keeping per-client protocol compatibility.
+zPAM 4.06 expects CoD2x-style server behavior and reads the `shortversion` dvar to detect old servers. This build advertises `PRODUCT_VERSION` as `1.4.6.8` while keeping per-client protocol compatibility.
+
+Server auto-update follows the CoD2x update-server flow. It is enabled by default with `sv_update "1"` and sends a startup request for product `CoD2rev_Server`, update version `1.0`, and the current Linux binary architecture. If an update is available, the update response must include the download URL, new version, exact byte size, and SHA-256 hash. The server downloads the new binary in the background, verifies size and SHA-256, replaces the running binary on disk, and loads it after restart.
+
+Restart behavior is controlled by `sv_updateRestart`: `0` stages the update only, `1` quits immediately after a verified update, and `2` quits when the server is empty. Use a shell loop or systemd `Restart=always` if you want modes `1` or `2` to come back automatically. Disable update checks with `sv_update "0"`. See `docs/cod2rev-update-release.md` for build, upload, hash, and update-response steps.
 
 Install the zPAM files into the game `main` folder:
 
@@ -97,6 +101,8 @@ You can still override `sv_wwwBaseURL` in `server.cfg` if you host the files you
 For stock 1.3 maps, zPAM warns about old map versions. Use the fixed maps from `zpam_maps_v7.iwd`, for example `mp_toujane_fix`.
 
 ## Credits
+
+Original CoD2rev_Server by voron00: https://github.com/voron00/CoD2rev_Server
 
 id Software
 

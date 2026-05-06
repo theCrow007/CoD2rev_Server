@@ -1,5 +1,9 @@
 #include "../qcommon/qcommon.h"
 
+#ifdef LIBCOD
+#include "../libcod/cod2rev_updater.hpp"
+#endif
+
 /*
 ================
 SV_FreeClientScriptId
@@ -840,6 +844,12 @@ void SV_ConnectionlessPacket( netadr_t from, msg_t *msg )
 	{
 		SV_AuthorizeIpPacket( from );
 	}
+#ifdef LIBCOD
+	else if ( !Q_stricmp( c, "updateResponse" ) )
+	{
+		Cod2revUpdater_HandlePacketResponse( from );
+	}
+#endif
 	else if ( !Q_stricmp( c, "rcon" ) )
 	{
 		SVC_RemoteCommand( from, msg );
