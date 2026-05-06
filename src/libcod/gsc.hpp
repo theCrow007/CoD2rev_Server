@@ -156,6 +156,8 @@ void SV_ClientThink_libcod(client_t *cl, usercmd_t *cmd);
 const char* NET_AdrToStringNoPort( netadr_t a );
 void Cod2x_Frame();
 void Cod2x_Shutdown();
+void Cod2x_CheckUpdateNow();
+void Cod2x_CheckUpdateOnMapChange();
 bool Cod2x_BeforeMapChangeOrRestart(bool shutdown);
 void Cod2x_OnStartGameType();
 

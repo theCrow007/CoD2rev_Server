@@ -581,6 +581,9 @@ void SV_Startup( void )
 	svs.initialized = qtrue;
 
 	Dvar_SetBool( com_sv_running, true );
+#ifdef LIBCOD
+	Cod2x_CheckUpdateNow();
+#endif
 }
 
 /*
@@ -843,6 +846,10 @@ void SV_SpawnServer( char *server )
 
 	Scr_ParseGameTypeList();
 	SV_SetGametype();
+
+#ifdef LIBCOD
+	Cod2x_CheckUpdateOnMapChange();
+#endif
 
 	// ydnar: broadcast a level change to all connected clients
 	qboolean savepersist = qfalse;

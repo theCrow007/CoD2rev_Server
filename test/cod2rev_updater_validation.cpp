@@ -18,5 +18,14 @@ int main()
 	assert(!Cod2revUpdater_IsValidSha256("short"));
 	assert(!Cod2revUpdater_IsValidSha256("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdeg"));
 
+	assert(Cod2revUpdater_ShouldSendRequestForTest(1000, -1, false, false, true, true));
+	assert(Cod2revUpdater_ShouldSendRequestForTest(1000, 900, false, true, true, true));
+	assert(!Cod2revUpdater_ShouldSendRequestForTest(1000, 900, false, false, true, true));
+	assert(Cod2revUpdater_ShouldSendRequestForTest(601000, 1000, false, false, true, true));
+	assert(!Cod2revUpdater_ShouldSendRequestForTest(30000, 1000, true, false, true, true));
+	assert(Cod2revUpdater_ShouldSendRequestForTest(31000, 1000, true, false, true, true));
+	assert(!Cod2revUpdater_ShouldSendRequestForTest(1000, -1, false, true, false, true));
+	assert(!Cod2revUpdater_ShouldSendRequestForTest(1000, -1, false, true, true, false));
+
 	return 0;
 }

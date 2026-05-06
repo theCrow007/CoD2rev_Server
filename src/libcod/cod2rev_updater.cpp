@@ -20,6 +20,8 @@
 #define COD2REV_UPDATE_ROLE "server"
 #define COD2REV_UPDATE_HOST "master.cod2x.me"
 #define COD2REV_UPDATE_PORT 20720
+#define COD2REV_UPDATE_CHECK_INTERVAL_MS 600000
+#define COD2REV_UPDATE_RESPONSE_TIMEOUT_MS 30000
 
 #if defined(__i386__) || defined(_M_IX86)
 #define COD2REV_UPDATE_PLATFORM "linux-i386"
@@ -103,6 +105,27 @@ bool Cod2revUpdater_IsValidSha256(const char *value)
 	return true;
 }
 
+static bool Cod2revUpdater_ShouldSendRequest(int now, int last_request_time, bool request_pending, bool force, bool server_running, bool update_enabled)
+{
+	if (!server_running || !update_enabled)
+		return false;
+
+	if (request_pending)
+		return now - last_request_time >= COD2REV_UPDATE_RESPONSE_TIMEOUT_MS;
+
+	if (force || last_request_time < 0)
+		return true;
+
+	return now - last_request_time >= COD2REV_UPDATE_CHECK_INTERVAL_MS;
+}
+
+#ifdef COD2REV_UPDATER_TEST
+bool Cod2revUpdater_ShouldSendRequestForTest(int now, int last_request_time, bool request_pending, bool force, bool server_running, bool update_enabled)
+{
+	return Cod2revUpdater_ShouldSendRequest(now, last_request_time, request_pending, force, server_running, update_enabled);
+}
+#endif
+
 #ifndef COD2REV_UPDATER_TEST
 
 dvar_t *sv_update;
@@ -110,7 +133,8 @@ dvar_t *sv_updateRestart;
 
 static netadr_t updater_address;
 static bool updater_address_resolved;
-static bool updater_request_sent;
+static bool updater_request_pending;
+static int updater_last_request_time = -1;
 static bool updater_restart_queued;
 static bool updater_ready_notice_printed;
 static int updater_wait_notice_time;
@@ -359,23 +383,37 @@ void Cod2revUpdater_RegisterDvars()
 	sv_updateRestart = Dvar_RegisterInt("sv_updateRestart", COD2REV_UPDATE_RESTART_NEVER, COD2REV_UPDATE_RESTART_NEVER, COD2REV_UPDATE_RESTART_WHEN_EMPTY, DVAR_CHANGEABLE_RESET);
 }
 
+static void Cod2revUpdater_TrySendRequest(bool force)
+{
+	bool update_enabled = sv_update && sv_update->current.boolean;
+	bool server_running = com_sv_running && com_sv_running->current.boolean;
+	int now = Com_Milliseconds();
+
+	if (!Cod2revUpdater_ShouldSendRequest(now, updater_last_request_time, updater_request_pending, force, server_running, update_enabled))
+		return;
+
+	updater_request_pending = true;
+	updater_last_request_time = now;
+	Cod2revUpdater_SendRequest();
+}
+
 void Cod2revUpdater_Frame()
 {
 #ifndef _WIN32
 	Cod2revUpdater_CheckRestartPolicy();
 #endif
 
-	if (updater_request_sent)
-		return;
+	Cod2revUpdater_TrySendRequest(false);
+}
 
-	if (!sv_update || !sv_update->current.boolean)
-		return;
+void Cod2revUpdater_CheckNow()
+{
+	Cod2revUpdater_TrySendRequest(true);
+}
 
-	if (!com_sv_running || !com_sv_running->current.boolean)
-		return;
-
-	updater_request_sent = true;
-	Cod2revUpdater_SendRequest();
+void Cod2revUpdater_CheckOnMapChange()
+{
+	Cod2revUpdater_TrySendRequest(false);
 }
 
 void Cod2revUpdater_HandlePacketResponse(netadr_t from)
@@ -398,6 +436,7 @@ void Cod2revUpdater_HandlePacketResponse(netadr_t from)
 	int update_available = atoi(update_available_text);
 
 	Com_Printf("-----------------------------------\n");
+	updater_request_pending = false;
 
 	if (update_available)
 	{

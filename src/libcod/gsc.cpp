@@ -651,6 +651,16 @@ void Cod2x_Shutdown()
 	gsc_http_shutdown();
 }
 
+void Cod2x_CheckUpdateNow()
+{
+	Cod2revUpdater_CheckNow();
+}
+
+void Cod2x_CheckUpdateOnMapChange()
+{
+	Cod2revUpdater_CheckOnMapChange();
+}
+
 bool Cod2x_BeforeMapChangeOrRestart(bool shutdown)
 {
 	if (!gsc_match_beforeMapChangeOrRestart(false, true, shutdown))
