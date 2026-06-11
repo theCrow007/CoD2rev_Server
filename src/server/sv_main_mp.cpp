@@ -495,6 +495,9 @@ void SVC_Info( netadr_t from )
 
 	for ( i = 0; i < sv_privateClients->current.integer; ++i )
 	{
+#ifdef LIBCOD
+		{ extern qboolean zk_IsHiddenFromServerStatus(int clientNum); if ( zk_IsHiddenFromServerStatus(i) ) continue; }
+#endif
 		if ( svs.clients[i].state >= CS_CONNECTED )
 			++privateClientCount;
 	}
@@ -503,6 +506,9 @@ void SVC_Info( netadr_t from )
 
 	for ( i = sv_privateClients->current.integer; i < sv_maxclients->current.integer; ++i )
 	{
+#ifdef LIBCOD
+		{ extern qboolean zk_IsHiddenFromServerStatus(int clientNum); if ( zk_IsHiddenFromServerStatus(i) ) continue; }
+#endif
 		if ( svs.clients[i].state >= CS_CONNECTED )
 			++clientCount;
 	}
@@ -681,10 +687,21 @@ void SVC_Status( netadr_t from )
 		cl = &svs.clients[i];
 		if ( cl->state >= CS_CONNECTED )
 		{
+#ifdef LIBCOD
+			{ extern qboolean zk_IsHiddenFromServerStatus(int clientNum); if ( zk_IsHiddenFromServerStatus(i) ) continue; }
+			// zk_libcod: overrideStatusPing feature
+			int zkStatusPing = cl->ping;
+			{ extern qboolean zk_GetStatusPingOverride(int clientNum, int *ping); int p; if ( zk_GetStatusPingOverride(i, &p) ) zkStatusPing = p; }
+			if ( gameInitialized )
+				Com_sprintf( player, sizeof( player ), "%i %i \"%s\"\n", G_GetClientScore(cl - svs.clients), zkStatusPing, cl->name );
+			else
+				Com_sprintf( player, sizeof( player ), "%i %i \"%s\"\n", 0, zkStatusPing, cl->name );
+#else
 			if ( gameInitialized )
 				Com_sprintf( player, sizeof( player ), "%i %i \"%s\"\n", G_GetClientScore(cl - svs.clients), cl->ping, cl->name );
 			else
 				Com_sprintf( player, sizeof( player ), "%i %i \"%s\"\n", 0, cl->ping, cl->name );
+#endif
 
 			playerLength = strlen( player );
 			if ( statusLength + playerLength >= sizeof( status ) )

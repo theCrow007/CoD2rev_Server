@@ -401,6 +401,11 @@ void G_InitGentity( gentity_t *ent )
 	ent->s.number = ent - g_entities;
 	ent->r.ownerNum = ENTITYNUM_NONE;
 
+#ifdef LIBCOD
+	// zk_libcod: reset this entity's custom per-entity state on init
+	{ extern void zk_ResetCustomEntityState(int entnum); zk_ResetCustomEntityState(ent->s.number); }
+#endif
+
 	ent->eventTime = 0;
 	ent->freeAfterEvent = qfalse;
 }

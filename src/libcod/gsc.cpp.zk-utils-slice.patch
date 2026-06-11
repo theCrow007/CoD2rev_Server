@@ -1,0 +1,28 @@
+diff --git a/src/libcod/gsc.cpp b/src/libcod/gsc.cpp
+index 49229a8..389d9e3 100644
+--- a/src/libcod/gsc.cpp
++++ b/src/libcod/gsc.cpp
+@@ -1,4 +1,5 @@
+ #include "gsc.hpp"
++#include "gsc_zk_utils.hpp"
+ #include "match.hpp"
+ #include "cod2rev_updater.hpp"
+ 
+@@ -174,6 +175,17 @@ scr_function_t scriptFunctions[] =
+ #endif
+ 
+ #if LIBCOD_COMPILE_UTILS == 1
++	// --- ported from zk_libcod (gsc_zk_utils.cpp) ---
++	{"abs", gsc_zk_utils_abs, 0},
++	{"atan2", gsc_zk_utils_atan2, 0},
++	{"ceil", gsc_zk_utils_ceil, 0},
++	{"floor", gsc_zk_utils_floor, 0},
++	{"chr", gsc_zk_utils_chr, 0},
++	{"ord", gsc_zk_utils_ord, 0},
++	{"tohex", gsc_zk_utils_tohex, 0},
++	{"fromhex", gsc_zk_utils_fromhex, 0},
++	{"roundto", gsc_zk_utils_roundto, 0},
++	// --- end zk port ---
+ 	{"printf", gsc_utils_printf, 0},
+ 	{"printoutofband", gsc_utils_outofbandprint, 0},
+ 	{"getarraykeys", gsc_utils_getarraykeys, 0},

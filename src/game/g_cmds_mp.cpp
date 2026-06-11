@@ -177,6 +177,9 @@ void DeathmatchScoreboardMessage( gentity_t *ent )
 	int j;
 	int i;
 	int stringlength;
+#ifdef LIBCOD
+	int visiblePlayers = 0; // zk_libcod: count of non-hidden players actually sent
+#endif
 
 	// send the latest information on all clients
 	string[0] = 0;
@@ -191,6 +194,15 @@ void DeathmatchScoreboardMessage( gentity_t *ent )
 	{
 		clientNum = level.sortedClients[i];
 		client = &level.clients[clientNum];
+
+#ifdef LIBCOD
+		// zk_libcod: hiddenFromScoreboard - omit this client entirely
+		{
+			extern qboolean zk_IsHiddenFromScoreboard(int clientNum);
+			if ( zk_IsHiddenFromScoreboard(clientNum) )
+				continue;
+		}
+#endif
 
 		if ( client->sess.connected == CON_CONNECTING )
 		{
@@ -224,11 +236,22 @@ void DeathmatchScoreboardMessage( gentity_t *ent )
 			break;
 		strcpy(string + stringlength, entry);
 		stringlength += j;
+#ifdef LIBCOD
+		visiblePlayers++;
+#endif
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: send the count of visible players, not the loop index,
+	// since hidden players were skipped via continue.
+	SV_GameSendServerCommand( ent - g_entities, SV_CMD_RELIABLE, va("%c %i %i %i%s", 98, visiblePlayers,
+	                          level.teamScores[TEAM_AXIS], level.teamScores[TEAM_ALLIES],
+	                          string ) );
+#else
 	SV_GameSendServerCommand( ent - g_entities, SV_CMD_RELIABLE, va("%c %i %i %i%s", 98, i,
 	                          level.teamScores[TEAM_AXIS], level.teamScores[TEAM_ALLIES],
 	                          string ) );
+#endif
 }
 
 /*

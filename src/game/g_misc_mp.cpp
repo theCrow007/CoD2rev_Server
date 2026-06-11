@@ -1164,7 +1164,16 @@ void Fire_Lead( gentity_t *ent, gentity_t *activator )
 	if ( wp.weapDef->weaponType )
 		Weapon_RocketLauncher_Fire(ent, 0, &wp);
 	else
+	{
+#ifdef LIBCOD
+		// zk_libcod: per-player turret spread scale (activator is the firing player)
+		float zkTurretSpread = ent->pTurretInfo->playerSpread;
+		{ extern float zk_GetTurretSpreadScale(int clientNum); zkTurretSpread *= zk_GetTurretSpreadScale(activator->s.number); }
+		Bullet_Fire(activator, zkTurretSpread, &wp, ent, level.time);
+#else
 		Bullet_Fire(activator, ent->pTurretInfo->playerSpread, &wp, ent, level.time);
+#endif
+	}
 
 	G_AddEvent(ent, EV_FIRE_WEAPON_MG42, activator->s.number);
 }

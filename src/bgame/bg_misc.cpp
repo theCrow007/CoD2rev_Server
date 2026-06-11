@@ -119,6 +119,15 @@ void BG_AddPredictableEventToPlayerstate( int newEvent, int eventParm, playerSta
 		return;
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: silent feature - suppress footstep/foliage/noammo sounds
+	{
+		extern qboolean zk_IsPlayerSilent(int clientNum);
+		if ( ( ( newEvent >= EV_FOOTSTEP_RUN_DEFAULT && newEvent <= EV_FOLIAGE_SOUND ) || newEvent == EV_NOAMMO ) && zk_IsPlayerSilent(ps->clientNum) )
+			return;
+	}
+#endif
+
 	ps->events[ps->eventSequence & ( MAX_EVENTS - 1 )] = newEvent;
 	ps->eventParms[ps->eventSequence & ( MAX_EVENTS - 1 )] = eventParm;
 	ps->eventSequence++;

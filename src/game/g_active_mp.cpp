@@ -72,6 +72,16 @@ void G_SetClientContents( gentity_t *pEnt )
 	}
 
 	pEnt->r.contents = CONTENTS_BODY;
+
+#ifdef LIBCOD
+	// zk_libcod: overrideContents feature
+	{
+		extern qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents);
+		int ovr;
+		if ( zk_GetPlayerContentsOverride(pEnt->s.number, &ovr) )
+			pEnt->r.contents = ovr;
+	}
+#endif
 }
 
 /*
@@ -1293,13 +1303,16 @@ void ClientEndFrame( gentity_t *ent )
 	client->ps.speed = g_speed->current.integer;
 
 #if LIBCOD_COMPILE_PLAYER == 1
-	int num = client->ps.clientNum;
-	extern int player_g_gravity[];
-	if (player_g_gravity[num] > 0)
-		client->ps.gravity = player_g_gravity[num];
-	extern int player_g_speed[];
-	if (player_g_speed[num] > 0)
-		client->ps.speed = player_g_speed[num];
+	// zk_libcod: per-player speed/gravity overrides (customPlayerState).
+	// Replaces rev's player_g_speed[]/player_g_gravity[] path - single source of truth.
+	{
+		extern void zk_ApplyPlayerSpeedGravity(int clientNum, int *speed, int *gravity);
+		int zkSpeed = client->ps.speed;
+		int zkGravity = client->ps.gravity;
+		zk_ApplyPlayerSpeedGravity(client->ps.clientNum, &zkSpeed, &zkGravity);
+		client->ps.speed = zkSpeed;
+		client->ps.gravity = zkGravity;
+	}
 #endif
 
 	client->currentAimSpreadScale = client->ps.aimSpreadScale / 255;

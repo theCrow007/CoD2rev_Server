@@ -14,6 +14,10 @@ SV_GetClientPing
 int SV_GetClientPing( int clientNum )
 {
 	assert(clientNum >= 0 && clientNum < MAX_CLIENTS);
+#ifdef LIBCOD
+	// zk_libcod: overridePing feature
+	{ extern qboolean zk_GetPingOverride(int clientNum, int *ping); int p; if ( zk_GetPingOverride(clientNum, &p) ) return p; }
+#endif
 	return svs.clients[clientNum].ping;
 }
 

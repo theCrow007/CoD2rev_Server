@@ -512,6 +512,11 @@ const char *ClientConnect( int clientNum, unsigned short scriptPersId )
 
 	memset( client, 0, sizeof( *client ) );
 
+#ifdef LIBCOD
+	// zk_libcod: reset this client's custom per-player state on (re)connect
+	{ extern void zk_ResetCustomPlayerState(int clientNum); zk_ResetCustomPlayerState(clientNum); }
+#endif
+
 	ci = &level_bgs.clientinfo[clientNum];
 	pXAnimTree = level_bgs.clientinfo[clientNum].pXAnimTree;
 

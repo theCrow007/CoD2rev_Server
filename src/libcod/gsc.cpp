@@ -1,4 +1,9 @@
 #include "gsc.hpp"
+#include "gsc_zk_utils.hpp"
+#include "gsc_zk_entity.hpp"
+#include "gsc_zk_weapons.hpp"
+#include "gsc_zk_level.hpp"
+#include "gsc_zk_player.hpp"
 #include "match.hpp"
 #include "cod2rev_updater.hpp"
 
@@ -114,6 +119,16 @@ scr_function_t scriptFunctions[] =
 #endif
 
 #if LIBCOD_COMPILE_LEVEL == 1
+	// --- ported from zk_libcod (gsc_zk_level.cpp) ---
+	{"getMovers", gsc_zk_level_getmovers, 0},
+	{"getEntityCount", gsc_zk_level_getentitycount, 0},
+	{"setNorthYaw", gsc_zk_level_setnorthyaw, 0},
+	{"getSavePersist", gsc_zk_level_getsavepersist, 0},
+	{"setSavePersist", gsc_zk_level_setsavepersist, 0},
+	// aliases: zk names -> rev's identical configstring-index finders
+	{"findConfigStringIndex", gsc_zk_utils_findconfigstringindex, 0},
+	{"findConfigStringIndexOriginal", gsc_zk_utils_findconfigstringindexoriginal, 0},
+	// --- end zk port ---
 	{"getnumberofstaticmodels", gsc_level_getnumberofstaticmodels, 0},
 	{"getstaticmodelname", gsc_level_getstaticmodelname, 0},
 	{"getstaticmodelorigin", gsc_level_getstaticmodelorigin, 0},
@@ -174,6 +189,29 @@ scr_function_t scriptFunctions[] =
 #endif
 
 #if LIBCOD_COMPILE_UTILS == 1
+	// --- ported from zk_libcod (gsc_zk_utils.cpp) ---
+	{"abs", gsc_zk_utils_abs, 0},
+	{"atan2", gsc_zk_utils_atan2, 0},
+	{"ceil", gsc_zk_utils_ceil, 0},
+	{"floor", gsc_zk_utils_floor, 0},
+	{"chr", gsc_zk_utils_chr, 0},
+	{"ord", gsc_zk_utils_ord, 0},
+	{"tohex", gsc_zk_utils_tohex, 0},
+	{"fromhex", gsc_zk_utils_fromhex, 0},
+	{"roundto", gsc_zk_utils_roundto, 0},
+	{"error", gsc_zk_utils_error, 0},
+	{"executecommand", gsc_zk_utils_executecommand, 0},
+	{"getmilliseconds", gsc_zk_utils_getmilliseconds, 0},
+	{"getmicroseconds", gsc_zk_utils_getmicroseconds, 0},
+	{"getcvarflags", gsc_zk_utils_getcvarflags, 0},
+	{"getsystemtime", gsc_zk_utils_getsystemtime, 0},
+	{"getlocaltime", gsc_zk_utils_getlocaltime, 0},
+	{"fremove", gsc_zk_utils_fremove, 0},
+	{"loaddir", gsc_zk_utils_loaddir, 0},
+	{"logprintconsole", gsc_zk_utils_logprintconsole, 0},
+	{"getsurfacename", gsc_zk_utils_getsurfacename, 0},
+	{"pow", gsc_utils_exponent, 0}, // alias: rev's exponent == zk's pow
+	// --- end zk port ---
 	{"printf", gsc_utils_printf, 0},
 	{"printoutofband", gsc_utils_outofbandprint, 0},
 	{"getarraykeys", gsc_utils_getarraykeys, 0},
@@ -218,6 +256,16 @@ scr_function_t scriptFunctions[] =
 #endif
 
 #if LIBCOD_COMPILE_WEAPONS == 1
+	// --- ported from zk_libcod (gsc_zk_weapons.cpp) ---
+	{"isSemiAutoWeapon", gsc_zk_weapons_issemiautoweapon, 0},
+	{"getWeaponRaiseTime", gsc_zk_weapons_getweaponraisetime, 0},
+	{"setWeaponRaiseTime", gsc_zk_weapons_setweaponraisetime, 0},
+	{"getWeaponFuseTime", gsc_zk_weapons_getweaponfusetime, 0},
+	{"setWeaponFuseTime", gsc_zk_weapons_setweaponfusetime, 0},
+	{"getWeaponMoveSpeedScale", gsc_zk_weapons_getmovespeedscale, 0},
+	{"setWeaponMoveSpeedScale", gsc_zk_weapons_setmovespeedscale, 0},
+	{"getWeaponDisplayName", gsc_zk_weapons_getweapondisplayname, 0},
+	// --- end zk port ---
 	{"getweaponmaxammo", gsc_weapons_getweaponmaxammo, 0},
 	{"setweaponmaxammo", gsc_weapons_setweaponmaxammo, 0},
 	{"getweaponclipsize", gsc_weapons_getweaponclipsize, 0},
@@ -283,9 +331,54 @@ scr_method_t scriptMethods[] =
 #if LIBCOD_COMPILE_ENTITY == 1
 	{"setalive", gsc_entity_setalive, 0},
 	{"setbounds", gsc_entity_setbounds, 0},
+	// --- ported from zk_libcod (gsc_zk_entity.cpp) ---
+	{"getClipmask", gsc_zk_entity_getclipmask, 0},
+	{"setClipmask", gsc_zk_entity_setclipmask, 0},
+	{"getVmax", gsc_zk_entity_getvmax, 0},
+	{"getVmin", gsc_zk_entity_getvmin, 0},
+	{"isTurret", gsc_zk_entity_isturret, 0},
+	{"isLinkedTo", gsc_zk_entity_islinkedto, 0},
+	{"getTurretOwner", gsc_zk_entity_getturretowner, 0},
+	{"setLight", gsc_zk_entity_setlight, 0},
+	{"hasTag", gsc_zk_entity_hastag, 0},
+	{"getTagOrigin", gsc_zk_entity_gettagorigin, 0},
+	// --- end zk port ---
 #endif
 
 #if LIBCOD_COMPILE_PLAYER == 1
+	// --- ported from zk_libcod (gsc_zk_player.cpp) ---
+	{"earthquakeForPlayer", gsc_zk_player_earthquakeforplayer, 0},
+	{"clientHasClientMuted", gsc_zk_player_clienthasclientmuted, 0},
+	{"playFxOnTagForPlayer", gsc_zk_player_playfxontagforplayer, 0},
+	{"enableSilent", gsc_zk_player_enablesilent, 0},
+	{"disableSilent", gsc_zk_player_disablesilent, 0},
+	{"overrideContents", gsc_zk_player_overridecontents, 0},
+	{"setWeaponSpreadScale", gsc_zk_player_setweaponspreadscale, 0},
+	{"setTurretSpreadScale", gsc_zk_player_setturretspreadscale, 0},
+	{"setHiddenFromScoreboard", gsc_zk_player_sethiddenfromscoreboard, 0},
+	{"isHiddenFromScoreboard", gsc_zk_player_ishiddenfromscoreboard, 0},
+	{"setHiddenFromServerStatus", gsc_zk_player_sethiddenfromserverstatus, 0},
+	{"isHiddenFromServerStatus", gsc_zk_player_ishiddenfromserverstatus, 0},
+	{"setPing", gsc_zk_player_setping, 0},
+	{"getSpeed", gsc_zk_player_getspeed, 0},
+	{"getGravity", gsc_zk_player_getgravity, 0},
+	{"isReloading", gsc_zk_player_isreloading, 0},
+	{"isFiring", gsc_zk_player_isfiring, 0},
+	{"isMeleeing", gsc_zk_player_ismeleeing, 0},
+	{"isThrowingGrenade", gsc_zk_player_isthrowinggrenade, 0},
+	{"getCurrentWeaponAmmo", gsc_zk_player_getcurrentweaponammo, 0},
+	{"getCurrentWeaponClipAmmo", gsc_zk_player_getcurrentweaponclipammo, 0},
+	{"getGroundEntity", gsc_zk_player_getgroundentity, 0},
+	{"getPlayerStateFlags", gsc_zk_player_getplayerstateflags, 0},
+	{"isShellshocked", gsc_zk_player_isshellshocked, 0},
+	{"setMeleeRangeScale", gsc_zk_player_setmeleerangescale, 0},
+	{"setMeleeWidthScale", gsc_zk_player_setmeleewidthscale, 0},
+	{"setMeleeHeightScale", gsc_zk_player_setmeleeheightscale, 0},
+	// aliases: zk names -> rev's existing per-player speed/gravity
+	// per-player speed/gravity: zk implementation (customPlayerState) is authoritative
+	{"setSpeed", gsc_zk_player_setspeed, 0},
+	{"setGravity", gsc_zk_player_setgravity, 0},
+	// --- end zk port ---
 	{"getIp", gsc_player_getip, 0},
 	{"getstance", gsc_player_stance_get, 0},
 	{"getStance", gsc_player_stance_get_cod2x, 0},
@@ -326,8 +419,8 @@ scr_method_t scriptMethods[] =
 	{"connectionlesspacket", gsc_player_connectionlesspacket, 0},
 	{"clientuserinfochanged", gsc_player_clientuserinfochanged, 0},
 	{"resetnextreliabletime", gsc_player_resetnextreliabletime, 0},
-	{"setg_speed", gsc_player_setg_speed, 0},
-	{"setg_gravity", gsc_player_setg_gravity, 0},
+	{"setg_speed", gsc_zk_player_setspeed, 0},
+	{"setg_gravity", gsc_zk_player_setgravity, 0},
 	{"setweaponfiremeleedelay", gsc_player_setweaponfiremeleedelay, 0},
 	{"setanim", gsc_player_set_anim, 0},
 	{"getjumpslowdowntimer", gsc_player_getjumpslowdowntimer, 0},

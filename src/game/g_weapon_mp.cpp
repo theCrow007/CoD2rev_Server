@@ -462,7 +462,15 @@ void FireWeaponMelee( gentity_t *ent )
 	assert(player_meleeWidth);
 	assert(player_meleeHeight);
 
-	Weapon_Melee( ent, &wp, player_meleeRange->current.decimal, player_meleeWidth->current.decimal, player_meleeHeight->current.decimal );
+	float zkMeleeRange = player_meleeRange->current.decimal;
+	float zkMeleeWidth = player_meleeWidth->current.decimal;
+	float zkMeleeHeight = player_meleeHeight->current.decimal;
+#ifdef LIBCOD
+	// zk_libcod: per-player melee range/width/height scales
+	{ extern void zk_ApplyMeleeScales(int clientNum, float *range, float *width, float *height); zk_ApplyMeleeScales(ent->s.number, &zkMeleeRange, &zkMeleeWidth, &zkMeleeHeight); }
+#endif
+
+	Weapon_Melee( ent, &wp, zkMeleeRange, zkMeleeWidth, zkMeleeHeight );
 }
 
 /*
@@ -520,6 +528,11 @@ void FireWeaponAntiLag( gentity_t *ent, int gametime )
 		fAimSpreadAmount = (maxSpread - wp.weapDef->adsSpread) * aimSpreadScale + wp.weapDef->adsSpread;
 	else
 		fAimSpreadAmount = (maxSpread - minSpread) * aimSpreadScale + minSpread;
+
+#ifdef LIBCOD
+	// zk_libcod: per-player weapon spread scale
+	{ extern float zk_GetWeaponSpreadScale(int clientNum); fAimSpreadAmount *= zk_GetWeaponSpreadScale(ent->s.number); }
+#endif
 
 	if ( wp.weapDef->weaponType == WEAPTYPE_BULLET )
 	{

@@ -66,7 +66,13 @@ XANIM_DIR=$(SRC_DIR)/xanim
 
 # Libcod stuff
 WITH_LIBCOD=true
+# MySQL variant: 0=disabled, 1=default (kungfooman/IzNoGoD), 2=VoroN
+MYSQL_VARIANT ?= 0
+ifneq ($(filter 1 2,$(MYSQL_VARIANT)),)
+WITH_MYSQL=true
+else
 WITH_MYSQL=false
+endif
 WITH_SQLITE=true
 
 ifeq ($(WITH_LIBCOD),true)
@@ -76,8 +82,11 @@ LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_ENTITY=1
 LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_EXEC=1
 LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_LEVEL=1
 LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_MEMORY=1
-ifeq ($(WITH_MYSQL),true)
+ifeq ($(MYSQL_VARIANT),1)
 LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_MYSQL=1
+endif
+ifeq ($(MYSQL_VARIANT),2)
+LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_MYSQL_VORON=1
 endif
 LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_PLAYER=1
 LIBCOD_SETTINGS+=-D LIBCOD_COMPILE_RATELIMITER=1
@@ -99,6 +108,13 @@ endif
 endif
 LIBCOD_DIR=$(SRC_DIR)/libcod
 LIBCOD_SOURCES=$(wildcard $(LIBCOD_DIR)/*.cpp)
+# Compile only the selected MySQL variant source
+ifneq ($(MYSQL_VARIANT),1)
+LIBCOD_SOURCES:=$(filter-out $(LIBCOD_DIR)/gsc_mysql.cpp,$(LIBCOD_SOURCES))
+endif
+ifneq ($(MYSQL_VARIANT),2)
+LIBCOD_SOURCES:=$(filter-out $(LIBCOD_DIR)/gsc_mysql_voron.cpp,$(LIBCOD_SOURCES))
+endif
 LIBCOD_OBJ=$(patsubst $(LIBCOD_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(LIBCOD_SOURCES))
 MONGOOSE_DIR=$(SRC_DIR)/libcod/mongoose
 MONGOOSE_SOURCES=$(wildcard $(MONGOOSE_DIR)/*.c)
