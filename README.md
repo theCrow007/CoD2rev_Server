@@ -4,7 +4,7 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 74 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
+**Progress: 91 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
 lacks), plus the custom-state infrastructure and 13 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
@@ -72,14 +72,18 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
 `getMovers`, `getEntityCount`, `setNorthYaw`, `getSavePersist`/`setSavePersist`
 (via rev's `G_GetSavePersist`/`G_SetSavePersist`).
 
-### gsc_zk_player.cpp — 29 functions
+### gsc_zk_player.cpp — 46 functions
 - **Custom-state setters:** `enableSilent`/`disableSilent`, `overrideContents`,
   `setWeaponSpreadScale`, `setTurretSpreadScale`, `setMeleeRangeScale`/`setMeleeWidthScale`/`setMeleeHeightScale`,
   `setSpeed`/`setGravity`, `setHiddenFromScoreboard`/`isHiddenFromScoreboard`,
   `setHiddenFromServerStatus`/`isHiddenFromServerStatus`, `setPing`.
 - **playerState/gclient readers:** `getSpeed`, `getGravity`, `isReloading`, `isFiring`,
   `isMeleeing`, `isThrowingGrenade`, `getCurrentWeaponAmmo`, `getCurrentWeaponClipAmmo`,
-  `getGroundEntity`, `getPlayerStateFlags`, `isShellshocked`.
+  `getGroundEntity`, `getPlayerStateFlags`, `isShellshocked`, `isChatting`, `getEnterTime`,
+  `getInactivityTime`, `getWeaponAnimation`, `getSpectatorClient`, `getClientHudElemCount`,
+  `isUsingBinoculars`, `canMantle`, `getCurrentOffhandSlotAmmo`, `getJumpSlowdownTimer`.
+- **playerState/gclient setters:** `noclip`, `setCurrentWeaponAmmo`, `setCurrentWeaponClipAmmo`,
+  `playScriptAnimation`, `processSuicide`, `stopUseTurret`, `forceShot`.
 
 ### gsc_zk_custom_state.cpp — infrastructure (not GSC functions)
 `customPlayerState[MAX_CLIENTS]` + `customEntityState[MAX_GENTITIES]` arrays, lifecycle
@@ -164,7 +168,9 @@ use x64-safe patterns to avoid adding instances.
   animation (`setAnimation`), talker icons, the `previousButtons` button-edge logic.
 - **Snapshot deep features** — `getNumberOfEntsInSnapshot`, `notAllowingSpectators`.
 - **VoroN MySQL variant 2** — `gsc_mysql_voron.cpp` not ported.
-- **`ischatting`** — deferred only on resolving rev's talk-button mask name (zk's `KEY_MASK_TALK`).
+- **gclient setters/readers blocked on missing rev symbols** — `setOriginAndAngles`
+  (`SetClientViewAngles`), `isRechambering`/`setRechambering` (`GetCurrentWeaponSlot`),
+  `isUseTouching` (`PMF_SPECTATING` differs).
 
 ---
 
@@ -172,10 +178,16 @@ use x64-safe patterns to avoid adding instances.
 
 | Bucket | Approx. remaining | Nature |
 |---|---|---|
-| gclient/playerState | ~30 | Individual readers (clean) then setters (mostly clean) — same vein as the batch just done |
+| gclient/playerState | ~4 (blocked) | Bucket essentially done; only deferred items remain (need missing rev symbols) |
 | server client_t | ~35 | netchan / userinfo / reliable-sequence accessors |
 | custom-state deep/subsystems | ~40 | Snapshot/bullet/pmove hooks + trimmed subsystems |
 | entity / weapons / misc stragglers | remainder | Struct reconciliation, union mapping |
+
+Deferred gclient items, all blocked on missing rev symbols: `isRechambering`/`setRechambering`
+(need `GetCurrentWeaponSlot`), `isUseTouching` (zk's `PMF_SPECTATING` is split into
+`PMF_SPECTATOR_FREE`/`PMF_SPECTATOR_FOLLOW` in rev), `setOriginAndAngles` (needs
+`SetClientViewAngles` plus full teleport/unlink logic). ~11 functions in this bucket were already
+present in rev under matching names and skipped.
 
 **Highest yield-per-effort so far:** checking whether rev already implements a feature before
 porting — several zk "missing" functions were already present under different names
@@ -183,17 +195,6 @@ porting — several zk "missing" functions were already present under different 
 trivial rebinds.
 
 ---
-
-## 9. How to apply (general pattern each round)
-
-1. `git checkout` the rev source files being re-patched.
-2. `cp` the updated `gsc_zk_*` module files into `src/libcod/`.
-3. `git apply` the relevant `*.patch` files.
-4. `./build.sh nomysql` (or your MySQL variant once the client lib is in place).
-5. Functional test in-game.
-
-All deliverables are in the outputs folder: the 6 `gsc_zk_*` module pairs, `gsc_zk_custom_state`,
-and per-file patches for `gsc.cpp` and each modified rev source file.
 
 # CoD2rev_Server
 

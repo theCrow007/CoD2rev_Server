@@ -4,6 +4,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 #include "gsc_zk_custom_state.hpp"
 
 /* Ported from zk_libcod gsc_player.cpp. All enums/fields verified in rev:
@@ -666,6 +667,452 @@ void gsc_zk_player_isshellshocked(scr_entref_t ref)
 	gentity_t *player = &g_entities[id];
 	gclient_t *client = player->client;
 	stackPushBool( client->ps.shellshockIndex != 0 && level.time <= (client->ps.shellshockTime + client->ps.shellshockDuration) );
+}
+
+void gsc_zk_player_ischatting(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_ischatting() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *ent = &g_entities[id];
+	stackPushBool( ( ent->client->buttons & BUTTON_TALK ) != 0 );
+}
+
+void gsc_zk_player_getentertime(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getentertime() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *entity = &g_entities[id];
+	stackPushInt(entity->client->sess.enterTime);
+}
+
+void gsc_zk_player_getinactivitytime(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getinactivitytime() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *entity = &g_entities[id];
+	stackPushInt(entity->client->inactivityTime);
+}
+
+void gsc_zk_player_getweaponanimation(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getweaponanimation() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	playerState_t *ps = SV_GameClientNum(id);
+	int anim = ps->weapAnim &= ~ANIM_TOGGLEBIT;
+
+	if ( ( anim == WEAP_RECHAMBER || anim == WEAP_ADS_RECHAMBER ) && ps->weaponTime == 0 )
+		anim = WEAP_IDLE;
+
+	stackPushInt(anim);
+}
+
+void gsc_zk_player_getspectatorclient(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	gentity_t *entity = &g_entities[id];
+
+	if ( entity->client == NULL )
+	{
+		stackError("gsc_zk_player_getspectatorclient() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( entity->client->spectatorClient == -1 )
+		stackPushUndefined();
+	else
+		stackPushEntity(&g_entities[entity->client->spectatorClient]);
+}
+
+void gsc_zk_player_getclienthudelemcount(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getclienthudelemcount() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int count = 0;
+	game_hudelem_t *g_hudelem = g_hudelems;
+	for ( int i = 0; i < 0x400; i++, g_hudelem++ )
+	{
+		if ( ( g_hudelem->elem.type != HE_TYPE_FREE ) && ( g_hudelem->clientNum == id ) )
+			count++;
+	}
+
+	stackPushInt(count);
+}
+
+void gsc_zk_player_isusingbinoculars(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_isusingbinoculars() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	playerState_t *ps = SV_GameClientNum(id);
+	stackPushBool( ps->weaponstate >= WEAPON_BINOCULARS_INIT && ps->weaponstate <= WEAPON_BINOCULARS_END );
+}
+
+void gsc_zk_player_canmantle(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_canmantle() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	playerState_t *ps = SV_GameClientNum(id);
+	stackPushBool( ps->mantleState.flags & 8 ? qtrue : qfalse );
+}
+
+void gsc_zk_player_getcurrentoffhandslotammo(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getcurrentoffhandslotammo() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	playerState_t *ps = SV_GameClientNum(id);
+	stackPushInt(ps->ammoclip[ps->offHandIndex - 1]);
+}
+
+void gsc_zk_player_getjumpslowdowntimer(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getjumpslowdowntimer() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	playerState_t *ps = SV_GameClientNum(id);
+	stackPushInt(ps->pm_time);
+}
+
+// ---- gclient/playerState setters ----
+
+void gsc_zk_player_noclip(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	char *noclip;
+
+	if ( !stackGetParams("s", &noclip) )
+	{
+		stackError("gsc_zk_player_noclip() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_noclip() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *entity = &g_entities[id];
+
+	if ( !I_stricmp(noclip, "on") || atoi(noclip) )
+		entity->client->noclip = qtrue;
+	else if ( !I_stricmp(noclip, "off") || !I_stricmp(noclip, "0") )
+		entity->client->noclip = qfalse;
+	else
+		entity->client->noclip = !entity->client->noclip;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setcurrentweaponammo(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setcurrentweaponammo() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int ammo;
+
+	if ( !stackGetParams("i", &ammo) )
+	{
+		stackError("gsc_zk_player_setcurrentweaponammo() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *player = &g_entities[id];
+	int weaponIndex = player->client->ps.weapon;
+	int clipIndex;
+	int ammoIndex;
+
+	if ( !G_IsPlaying(player) )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( weaponIndex < 1 )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( BG_WeaponIsClipOnly(weaponIndex) )
+	{
+		clipIndex = BG_ClipForWeapon(weaponIndex);
+		if ( clipIndex )
+		{
+			if ( ammo >= 0 )
+			{
+				if ( ammo > BG_GetAmmoClipSize(clipIndex) )
+					ammo = BG_GetAmmoClipSize(clipIndex);
+			}
+			else
+				ammo = 0;
+			player->client->ps.ammoclip[clipIndex] = ammo;
+		}
+	}
+	else
+	{
+		ammoIndex = BG_AmmoForWeapon(weaponIndex);
+		if ( ammoIndex )
+		{
+			if ( ammo >= 0 )
+			{
+				if ( ammo > BG_GetAmmoTypeMax(ammoIndex) )
+					ammo = BG_GetAmmoTypeMax(ammoIndex);
+			}
+			else
+				ammo = 0;
+			player->client->ps.ammo[ammoIndex] = ammo;
+		}
+	}
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setcurrentweaponclipammo(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setcurrentweaponclipammo() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int ammo;
+
+	if ( !stackGetParams("i", &ammo) )
+	{
+		stackError("gsc_zk_player_setcurrentweaponclipammo() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *player = &g_entities[id];
+
+	if ( !G_IsPlaying(player) )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( player->client->ps.weapon < 1 )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	int clipIndex = BG_ClipForWeapon(player->s.weapon);
+	if ( !clipIndex )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+	else
+	{
+		if ( ammo < 0 )
+			ammo = 0;
+
+		if ( ammo > BG_GetAmmoClipSize(clipIndex) )
+			ammo = BG_GetAmmoClipSize(clipIndex);
+
+		player->client->ps.ammoclip[clipIndex] = ammo;
+	}
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_playscriptanimation(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int scriptAnimEventType;
+	int isContinue;
+	int force;
+
+	if ( !stackGetParams("iii", &scriptAnimEventType, &isContinue, &force) )
+	{
+		stackError("gsc_zk_player_playscriptanimation() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_playscriptanimation() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( scriptAnimEventType < 0 || scriptAnimEventType >= NUM_ANIM_EVENTTYPES )
+	{
+		stackError("gsc_zk_player_playscriptanimation() argument is not a valid scriptAnimEventType");
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *entity = &g_entities[id];
+	stackPushInt(BG_AnimScriptEvent(&entity->client->ps, (scriptAnimEventTypes_t)scriptAnimEventType, isContinue, force));
+}
+
+void gsc_zk_player_processsuicide(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_processsuicide() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *pSelf = &g_entities[id];
+
+	pSelf->flags &= 0xFFFFFFFC;
+	pSelf->health = 0;
+	pSelf->client->ps.stats[STAT_HEALTH] = 0;
+
+	player_die(pSelf, pSelf, pSelf, 100000, MOD_SUICIDE, 0, 0, HITLOC_NONE, 0);
+}
+
+void gsc_zk_player_stopuseturret(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	gentity_t *entity = &g_entities[id];
+
+	if ( entity->client == NULL )
+	{
+		stackError("gsc_zk_player_stopuseturret() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( entity->client->ps.pm_flags & PMF_PLAYER && entity->client->ps.eFlags & EF_TURRET_ACTIVE )
+	{
+		G_ClientStopUsingTurret(&level.gentities[entity->client->ps.viewlocked_entNum]);
+		stackPushBool(qtrue);
+	}
+	else
+		stackPushBool(qfalse);
+}
+
+void gsc_zk_player_forceshot(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_forceshot() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *player = &g_entities[id];
+	gclient_t *client = player->client;
+	qboolean onClientToo = qtrue;
+
+	if ( Scr_GetNumParam() > 0 )
+	{
+		if ( Scr_GetType(0) == VAR_INTEGER )
+			onClientToo = Scr_GetInt(0);
+		else
+		{
+			stackError("gsc_zk_player_forceshot() one or more arguments is undefined or has a wrong type");
+			stackPushUndefined();
+			return;
+		}
+	}
+
+	if ( !G_IsPlaying(player) )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( client->ps.weapon < 1 )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( !g_antilag->current.boolean )
+		FireWeaponAntiLag(player, level.time);
+	else
+		FireWeaponAntiLag(player, client->lastServerTime);
+
+	if ( onClientToo )
+		PM_AddEvent(SV_GameClientNum(id), EV_FIRE_WEAPON);
+
+	stackPushBool(qtrue);
 }
 
 #endif

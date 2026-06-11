@@ -45,5 +45,22 @@ void gsc_zk_player_getcurrentweaponclipammo(scr_entref_t ref);
 void gsc_zk_player_getgroundentity(scr_entref_t ref);
 void gsc_zk_player_getplayerstateflags(scr_entref_t ref);
 void gsc_zk_player_isshellshocked(scr_entref_t ref);
+void gsc_zk_player_ischatting(scr_entref_t ref);
+void gsc_zk_player_getentertime(scr_entref_t ref);
+void gsc_zk_player_getinactivitytime(scr_entref_t ref);
+void gsc_zk_player_getweaponanimation(scr_entref_t ref);
+void gsc_zk_player_getspectatorclient(scr_entref_t ref);
+void gsc_zk_player_getclienthudelemcount(scr_entref_t ref);
+void gsc_zk_player_isusingbinoculars(scr_entref_t ref);
+void gsc_zk_player_canmantle(scr_entref_t ref);
+void gsc_zk_player_getcurrentoffhandslotammo(scr_entref_t ref);
+void gsc_zk_player_getjumpslowdowntimer(scr_entref_t ref);
+void gsc_zk_player_noclip(scr_entref_t ref);
+void gsc_zk_player_setcurrentweaponammo(scr_entref_t ref);
+void gsc_zk_player_setcurrentweaponclipammo(scr_entref_t ref);
+void gsc_zk_player_playscriptanimation(scr_entref_t ref);
+void gsc_zk_player_processsuicide(scr_entref_t ref);
+void gsc_zk_player_stopuseturret(scr_entref_t ref);
+void gsc_zk_player_forceshot(scr_entref_t ref);
 
 #endif
