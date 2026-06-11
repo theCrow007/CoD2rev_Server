@@ -4,7 +4,7 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 91 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
+**Progress: 114 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
 lacks), plus the custom-state infrastructure and 13 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
@@ -37,7 +37,10 @@ call-site edits in rev's C source.
 ## 2. Build system (complete)
 
 - **`build.sh`** — interactive wrapper mirroring zk's `doit.sh` MySQL prompt
-  (`0`=disabled, `1`=default, `2`=VoroN).
+  (`0`=disabled, `1`=default, `2`=VoroN). `./build.sh clean` (also `cleanall`/`distclean`) does a
+  thorough, arch-agnostic clean — it wipes the whole `obj/` tree and every binary/lib variant,
+  rather than delegating to the Makefile's arch-scoped `clean` (which would leave the
+  non-default architecture's objects and binary behind).
 - **Makefile** — `WITH_MYSQL=false` replaced with a `MYSQL_VARIANT ?= 0` selector; per-variant
   `-D` flags; `filter-out` keeps only the selected MySQL source.
 - All sources compile with `-D LIBCOD` globally so `#ifdef LIBCOD` works in game/server files.
@@ -72,7 +75,7 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
 `getMovers`, `getEntityCount`, `setNorthYaw`, `getSavePersist`/`setSavePersist`
 (via rev's `G_GetSavePersist`/`G_SetSavePersist`).
 
-### gsc_zk_player.cpp — 46 functions
+### gsc_zk_player.cpp — 69 functions
 - **Custom-state setters:** `enableSilent`/`disableSilent`, `overrideContents`,
   `setWeaponSpreadScale`, `setTurretSpreadScale`, `setMeleeRangeScale`/`setMeleeWidthScale`/`setMeleeHeightScale`,
   `setSpeed`/`setGravity`, `setHiddenFromScoreboard`/`isHiddenFromScoreboard`,
@@ -84,6 +87,12 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
   `isUsingBinoculars`, `canMantle`, `getCurrentOffhandSlotAmmo`, `getJumpSlowdownTimer`.
 - **playerState/gclient setters:** `noclip`, `setCurrentWeaponAmmo`, `setCurrentWeaponClipAmmo`,
   `playScriptAnimation`, `processSuicide`, `stopUseTurret`, `forceShot`.
+- **server client_t accessors:** `aimButtonPressed`, `backButtonPressed`, `forwardButtonPressed`,
+  `fragButtonPressed`, `holdBreathButtonPressed`, `jumpButtonPressed`, `leanLeftButtonPressed`,
+  `leanRightButtonPressed`, `leftButtonPressed`, `reloadButtonPressed`, `rightButtonPressed`,
+  `smokeButtonPressed`, `isBot`, `getClientConnectState`, `getLastMsg`, `getLastConnectTime`,
+  `getAddressType`, `getServerCommandQueueSize`, `getUserinfo`, `setGuid`, `muteClient`,
+  `unmuteClient`, `renameClient`.
 
 ### gsc_zk_custom_state.cpp — infrastructure (not GSC functions)
 `customPlayerState[MAX_CLIENTS]` + `customEntityState[MAX_GENTITIES]` arrays, lifecycle
@@ -179,9 +188,13 @@ use x64-safe patterns to avoid adding instances.
 | Bucket | Approx. remaining | Nature |
 |---|---|---|
 | gclient/playerState | ~4 (blocked) | Bucket essentially done; only deferred items remain (need missing rev symbols) |
-| server client_t | ~35 | netchan / userinfo / reliable-sequence accessors |
+| server client_t | ~8 | Accessor sub-family done; remaining are the heavier ones (`setUserinfo`, `setConfigStringForPlayer`, `setNorthYawForPlayer`, `setHoldingWeaponDown`, `resetNextReliableTime`, `playSoundFile`, `connectionlessPacketToClient`/`...ToServer`) |
 | custom-state deep/subsystems | ~40 | Snapshot/bullet/pmove hooks + trimmed subsystems |
 | entity / weapons / misc stragglers | remainder | Struct reconciliation, union mapping |
+
+The `client_t` button family (`*ButtonPressed`) mapped cleanly: zk's `KEY_MASK_*` constants are
+numerically identical to rev's `BUTTON_*`, so each was a straight substitution. `getUserinfo`
+needed the recurring `const char*` fix for rev's `Info_ValueForKey`.
 
 Deferred gclient items, all blocked on missing rev symbols: `isRechambering`/`setRechambering`
 (need `GetCurrentWeaponSlot`), `isUseTouching` (zk's `PMF_SPECTATING` is split into
@@ -195,6 +208,7 @@ porting — several zk "missing" functions were already present under different 
 trivial rebinds.
 
 ---
+
 
 # CoD2rev_Server
 

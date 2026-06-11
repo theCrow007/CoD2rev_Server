@@ -1115,4 +1115,446 @@ void gsc_zk_player_forceshot(scr_entref_t ref)
 	stackPushBool(qtrue);
 }
 
+// ---- server client_t accessors ----
+
+void gsc_zk_player_button_ads(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_ads() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_ADS ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_back(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_back() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.forwardmove == BUTTON_BACK ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_forward(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_forward() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.forwardmove == BUTTON_FORWARD ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_frag(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_frag() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_FRAG ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_holdbreath(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_holdbreath() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_HOLDBREATH ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_jump(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_jump() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_JUMP ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_leanleft(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_leanleft() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_LEANLEFT ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_leanright(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_leanright() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_LEANRIGHT ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_left(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_left() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.rightmove == BUTTON_MOVELEFT ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_reload(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_reload() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_RELOAD ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_right(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_right() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.rightmove == BUTTON_MOVERIGHT ? qtrue : qfalse);
+}
+
+void gsc_zk_player_button_smoke(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_button_smoke() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->lastUsercmd.buttons & BUTTON_SMOKE ? qtrue : qfalse);
+}
+
+void gsc_zk_player_isbot(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_isbot() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushBool(client->bIsTestClient);
+}
+
+void gsc_zk_player_getclientconnectstate(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getclientconnectstate() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushInt(client->state);
+}
+
+void gsc_zk_player_getlastmsg(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getlastmsg() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushInt(svs.time - client->lastPacketTime);
+}
+
+void gsc_zk_player_getlastconnecttime(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getlastconnecttime() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushInt(client->lastConnectTime);
+}
+
+void gsc_zk_player_addresstype(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_addresstype() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushInt(client->netchan.remoteAddress.type);
+}
+
+void gsc_zk_player_getservercommandqueuesize(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getservercommandqueuesize() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	stackPushInt(client->reliableSequence - client->reliableAcknowledge);
+}
+
+void gsc_zk_player_getuserinfo(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	char *key;
+
+	if ( !stackGetParams("s", &key) )
+	{
+		stackError("gsc_zk_player_getuserinfo() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getuserinfo() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	const char *val = Info_ValueForKey(client->userinfo, key);
+
+	if ( strlen(val) )
+		stackPushString(val);
+	else
+		stackPushString("");
+}
+
+void gsc_zk_player_setguid(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int guid;
+
+	if ( !stackGetParams("i", &guid) )
+	{
+		stackError("gsc_zk_player_setguid() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setguid() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	client->guid = guid;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_muteclient(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int id2;
+
+	if ( !stackGetParams("i", &id2) )
+	{
+		stackError("gsc_zk_player_muteclient() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_muteclient() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id2 >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_muteclient() entity %i is not a player", id2);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	client->muteList[id2] = 1;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_unmuteclient(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int id2;
+
+	if ( !stackGetParams("i", &id2) )
+	{
+		stackError("gsc_zk_player_unmuteclient() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_unmuteclient() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id2 >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_unmuteclient() entity %i is not a player", id2);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	client->muteList[id2] = 0;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_renameclient(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	char *name;
+
+	if ( !stackGetParams("s", &name) )
+	{
+		stackError("gsc_zk_player_renameclient() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( strlen(name) > 31 )
+	{
+		stackError("gsc_zk_player_renameclient() player name is longer than 31 characters");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_renameclient() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	Info_SetValueForKey(client->userinfo, "name", name);
+	strcpy(client->name, name);
+	ClientUserinfoChanged(id);
+
+	stackPushBool(qtrue);
+}
+
 #endif

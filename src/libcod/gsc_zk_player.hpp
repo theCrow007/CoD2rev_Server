@@ -63,4 +63,27 @@ void gsc_zk_player_processsuicide(scr_entref_t ref);
 void gsc_zk_player_stopuseturret(scr_entref_t ref);
 void gsc_zk_player_forceshot(scr_entref_t ref);
 
+void gsc_zk_player_button_ads(scr_entref_t ref);
+void gsc_zk_player_button_back(scr_entref_t ref);
+void gsc_zk_player_button_forward(scr_entref_t ref);
+void gsc_zk_player_button_frag(scr_entref_t ref);
+void gsc_zk_player_button_holdbreath(scr_entref_t ref);
+void gsc_zk_player_button_jump(scr_entref_t ref);
+void gsc_zk_player_button_leanleft(scr_entref_t ref);
+void gsc_zk_player_button_leanright(scr_entref_t ref);
+void gsc_zk_player_button_left(scr_entref_t ref);
+void gsc_zk_player_button_reload(scr_entref_t ref);
+void gsc_zk_player_button_right(scr_entref_t ref);
+void gsc_zk_player_button_smoke(scr_entref_t ref);
+void gsc_zk_player_isbot(scr_entref_t ref);
+void gsc_zk_player_getclientconnectstate(scr_entref_t ref);
+void gsc_zk_player_getlastmsg(scr_entref_t ref);
+void gsc_zk_player_getlastconnecttime(scr_entref_t ref);
+void gsc_zk_player_addresstype(scr_entref_t ref);
+void gsc_zk_player_getservercommandqueuesize(scr_entref_t ref);
+void gsc_zk_player_getuserinfo(scr_entref_t ref);
+void gsc_zk_player_setguid(scr_entref_t ref);
+void gsc_zk_player_muteclient(scr_entref_t ref);
+void gsc_zk_player_unmuteclient(scr_entref_t ref);
+void gsc_zk_player_renameclient(scr_entref_t ref);
 #endif
