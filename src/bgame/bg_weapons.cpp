@@ -1528,6 +1528,21 @@ void PM_Weapon( pmove_t *pm, pml_t *pml )
 	ps = pm->ps;
 	assert(ps);
 
+#ifdef LIBCOD
+	// zk_libcod: setHoldingWeaponDown enforcement - keep the lowered weapon held
+	{
+		extern int zk_GetHoldingDownWeapon(int clientNum);
+		int zkHeld = zk_GetHoldingDownWeapon(ps->clientNum);
+		if ( zkHeld )
+		{
+			ps->weapon = zkHeld;
+			ps->fWeaponPosFrac = 0;
+			ps->adsDelayTime = 0;
+			return;
+		}
+	}
+#endif
+
 	if ( pm->ps->pm_flags & PMF_RESPAWNED )
 	{
 		return;

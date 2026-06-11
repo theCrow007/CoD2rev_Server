@@ -86,4 +86,11 @@ void gsc_zk_player_setguid(scr_entref_t ref);
 void gsc_zk_player_muteclient(scr_entref_t ref);
 void gsc_zk_player_unmuteclient(scr_entref_t ref);
 void gsc_zk_player_renameclient(scr_entref_t ref);
+void gsc_zk_player_setuserinfo(scr_entref_t ref);
+void gsc_zk_player_setconfigstringforplayer(scr_entref_t ref);
+void gsc_zk_player_setnorthyawforplayer(scr_entref_t ref);
+void gsc_zk_player_resetnextreliabletime(scr_entref_t ref);
+void gsc_zk_player_connectionlesspackettoclient(scr_entref_t ref);
+void gsc_zk_player_connectionlesspackettoserver(scr_entref_t ref);
+void gsc_zk_player_setholdingweapondown(scr_entref_t ref);
 #endif

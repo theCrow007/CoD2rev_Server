@@ -248,6 +248,10 @@ void Player_UpdateCursorHints( gentity_t *ent )
 
 		if ( traceEnt->s.eType == ET_ITEM )
 		{
+#ifdef LIBCOD
+			// zk_libcod: setHoldingWeaponDown suppresses item pickup hint
+			{ extern int zk_GetHoldingDownWeapon(int clientNum); if ( zk_GetHoldingDownWeapon(ent->s.number) ) continue; }
+#endif
 			int itemHint = Player_GetItemCursorHint(ent->client, traceEnt);
 
 			if ( !itemHint )

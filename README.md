@@ -4,8 +4,8 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 114 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
-lacks), plus the custom-state infrastructure and 13 native engine hooks. Every round compiles and
+**Progress: 121 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
+lacks), plus the custom-state infrastructure and 14 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
 ---
@@ -75,7 +75,7 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
 `getMovers`, `getEntityCount`, `setNorthYaw`, `getSavePersist`/`setSavePersist`
 (via rev's `G_GetSavePersist`/`G_SetSavePersist`).
 
-### gsc_zk_player.cpp — 69 functions
+### gsc_zk_player.cpp — 76 functions
 - **Custom-state setters:** `enableSilent`/`disableSilent`, `overrideContents`,
   `setWeaponSpreadScale`, `setTurretSpreadScale`, `setMeleeRangeScale`/`setMeleeWidthScale`/`setMeleeHeightScale`,
   `setSpeed`/`setGravity`, `setHiddenFromScoreboard`/`isHiddenFromScoreboard`,
@@ -92,7 +92,9 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
   `leanRightButtonPressed`, `leftButtonPressed`, `reloadButtonPressed`, `rightButtonPressed`,
   `smokeButtonPressed`, `isBot`, `getClientConnectState`, `getLastMsg`, `getLastConnectTime`,
   `getAddressType`, `getServerCommandQueueSize`, `getUserinfo`, `setGuid`, `muteClient`,
-  `unmuteClient`, `renameClient`.
+  `unmuteClient`, `renameClient`, `setUserinfo`, `setConfigStringForPlayer`,
+  `setNorthYawForPlayer`, `resetNextReliableTime`, `connectionlessPacketToClient`,
+  `connectionlessPacketToServer`, `setHoldingWeaponDown`.
 
 ### gsc_zk_custom_state.cpp — infrastructure (not GSC functions)
 `customPlayerState[MAX_CLIENTS]` + `customEntityState[MAX_GENTITIES]` arrays, lifecycle
@@ -119,6 +121,7 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | hiddenFromServerStatus | `zk_IsHiddenFromServerStatus` | `SVC_Info` (both count loops) + `SVC_Status` (player lines) |
 | overridePing | `zk_GetPingOverride` | `SV_GetClientPing` |
 | overrideStatusPing | `zk_GetStatusPingOverride` | `SVC_Status` player line |
+| holdingDownWeapon | `zk_GetHoldingDownWeapon` | `PM_Weapon` (force lowered weapon, early-return) + `Player_UpdateCursorHints` (suppress item hint) |
 
 ---
 
@@ -136,6 +139,8 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | `src/game/g_cmds_mp.cpp` | hiddenFromScoreboard (scoreboard builder) |
 | `src/server/sv_main_mp.cpp` | hiddenFromServerStatus + overrideStatusPing |
 | `src/server/sv_game_mp.cpp` | overridePing |
+| `src/bgame/bg_weapons.cpp` | holdingDownWeapon enforcement in `PM_Weapon` |
+| `src/game/player_use_mp.cpp` | holdingDownWeapon suppresses item cursor hint |
 
 ---
 
@@ -180,6 +185,12 @@ use x64-safe patterns to avoid adding instances.
 - **gclient setters/readers blocked on missing rev symbols** — `setOriginAndAngles`
   (`SetClientViewAngles`), `isRechambering`/`setRechambering` (`GetCurrentWeaponSlot`),
   `isUseTouching` (`PMF_SPECTATING` differs).
+- **client_t blocked items** — `playSoundFile` (custom sound subsystem). `setHoldingWeaponDown`
+  is ported (field un-trimmed, setter, `PM_Weapon` + cursor-hint hooks); deferred only is its
+  turret-exit re-apply (re-running the drop state when a holding player leaves a turret — an edge
+  case in `custom_G_ClientStopUsingTurret`). Reconciles applied: `WeaponDef_t`→`WeaponDef`,
+  `iDropTime`→`dropTime`, `iRaiseTime`→`raiseTime`, `overlayReticle`→`adsOverlayReticle`,
+  `bADSFire`→`adsFire`; zk's always-true `pm_flags | PMF_FRAG` typo corrected to `& PMF_FRAG`.
 
 ---
 
@@ -188,13 +199,13 @@ use x64-safe patterns to avoid adding instances.
 | Bucket | Approx. remaining | Nature |
 |---|---|---|
 | gclient/playerState | ~4 (blocked) | Bucket essentially done; only deferred items remain (need missing rev symbols) |
-| server client_t | ~8 | Accessor sub-family done; remaining are the heavier ones (`setUserinfo`, `setConfigStringForPlayer`, `setNorthYawForPlayer`, `setHoldingWeaponDown`, `resetNextReliableTime`, `playSoundFile`, `connectionlessPacketToClient`/`...ToServer`) |
+| server client_t | ~1 (blocked) | Bucket essentially done; `playSoundFile` (sound subsystem) remains. `setHoldingWeaponDown` now ported (core + PM_Weapon hook); only its turret-exit re-apply edge case is deferred |
 | custom-state deep/subsystems | ~40 | Snapshot/bullet/pmove hooks + trimmed subsystems |
 | entity / weapons / misc stragglers | remainder | Struct reconciliation, union mapping |
 
-The `client_t` button family (`*ButtonPressed`) mapped cleanly: zk's `KEY_MASK_*` constants are
-numerically identical to rev's `BUTTON_*`, so each was a straight substitution. `getUserinfo`
-needed the recurring `const char*` fix for rev's `Info_ValueForKey`.
+The `client_t` server-command senders use rev's variadic `SV_SendServerCommand(client, type, fmt, ...)`
+called as `(client, SV_CMD_RELIABLE, "%s", cmd)` rather than passing the script-built string as the
+format directly — avoids a format-string bug when a configstring value contains `%`.
 
 Deferred gclient items, all blocked on missing rev symbols: `isRechambering`/`setRechambering`
 (need `GetCurrentWeaponSlot`), `isUseTouching` (zk's `PMF_SPECTATING` is split into
@@ -208,7 +219,6 @@ porting — several zk "missing" functions were already present under different 
 trivial rebinds.
 
 ---
-
 
 # CoD2rev_Server
 

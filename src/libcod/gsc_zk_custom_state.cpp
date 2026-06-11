@@ -83,6 +83,13 @@ qboolean zk_GetStatusPingOverride(int clientNum, int *ping)
 	return qtrue;
 }
 
+int zk_GetHoldingDownWeapon(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return 0;
+	return customPlayerState[clientNum].holdingDownWeapon;
+}
+
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents)
 {
 	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )

@@ -91,6 +91,7 @@ typedef struct customPlayerState_s
 	int gravity;
 	int previousButtons;
 	unsigned int weapon;
+	int holdingDownWeapon;
 
 	// --- use-button feature ---
 	qboolean activateOnUseButtonRelease;
@@ -134,6 +135,7 @@ qboolean zk_IsHiddenFromScoreboard(int clientNum);
 qboolean zk_IsHiddenFromServerStatus(int clientNum);
 qboolean zk_GetPingOverride(int clientNum, int *ping);
 qboolean zk_GetStatusPingOverride(int clientNum, int *ping);
+int zk_GetHoldingDownWeapon(int clientNum);
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents);
 float zk_GetWeaponSpreadScale(int clientNum);
 float zk_GetTurretSpreadScale(int clientNum);

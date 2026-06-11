@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include "gsc_zk_custom_state.hpp"
 
+#ifndef MAX_STRINGLENGTH
+#define MAX_STRINGLENGTH 1024
+#endif
+
 /* Ported from zk_libcod gsc_player.cpp. All enums/fields verified in rev:
  * EV_EARTHQUAKE, EV_PLAY_FX_ON_TAG, s.angles2/time/otherEntityNum/
  * attackerEntityNum, SV_ClientHasClientMuted. tag_name reconciled to
@@ -1553,6 +1557,260 @@ void gsc_zk_player_renameclient(scr_entref_t ref)
 	Info_SetValueForKey(client->userinfo, "name", name);
 	strcpy(client->name, name);
 	ClientUserinfoChanged(id);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setuserinfo(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	char *key, *value;
+
+	if ( !stackGetParams("ss", &key, &value) )
+	{
+		stackError("gsc_zk_player_setuserinfo() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setuserinfo() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	Info_SetValueForKey(client->userinfo, key, value);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setconfigstringforplayer(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setconfigstringforplayer() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	char *value;
+	int index;
+
+	if ( !stackGetParams("is", &index, &value) )
+	{
+		stackError("gsc_zk_player_setconfigstringforplayer() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	char cmd[MAX_STRINGLENGTH];
+
+	Com_sprintf(cmd, MAX_STRINGLENGTH, "d %i %s", index, value);
+	SV_SendServerCommand(client, SV_CMD_RELIABLE, "%s", cmd);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setnorthyawforplayer(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	float fYaw;
+	int len;
+	client_t *client = &svs.clients[id];
+	char cmd[MAX_STRINGLENGTH];
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setnorthyawforplayer() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( !stackGetParams("f", &fYaw) )
+	{
+		stackError("gsc_zk_player_setnorthyawforplayer() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	len = snprintf(NULL, 0, "%g", fYaw);
+	if ( len < 0 || len >= ( MAX_STRINGLENGTH - 5 ) )
+	{
+		stackError("gsc_zk_player_setnorthyawforplayer() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	Com_sprintf(cmd, MAX_STRINGLENGTH, "d 11 %g", fYaw);
+	SV_SendServerCommand(client, SV_CMD_RELIABLE, "%s", cmd);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_resetnextreliabletime(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_resetnextreliabletime() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+
+	client->nextReliableTime = 0;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_connectionlesspackettoclient(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	char *cmd;
+
+	if ( !stackGetParams("s", &cmd) )
+	{
+		stackError("gsc_zk_player_connectionlesspackettoclient() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_connectionlesspackettoclient() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	NET_OutOfBandPrint(NS_SERVER, client->netchan.remoteAddress, cmd);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_connectionlesspackettoserver(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	char *cmd;
+
+	if ( !stackGetParams("s", &cmd) )
+	{
+		stackError("gsc_zk_player_connectionlesspackettoserver() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_connectionlesspackettoserver() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id];
+	byte bufData[MAX_MSGLEN];
+	msg_t msg;
+
+	MSG_Init(&msg, bufData, sizeof(bufData));
+	MSG_WriteByte(&msg, svc_nop);
+	MSG_WriteShort(&msg, 0);
+	MSG_WriteLong(&msg, -1);
+	MSG_WriteString(&msg, cmd);
+
+	SV_ConnectionlessPacket(client->netchan.remoteAddress, &msg);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setholdingweapondown(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setholdingweapondown() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	playerState_t *ps = SV_GameClientNum(id);
+
+	if ( Scr_GetNumParam() < 1 )
+	{
+		stackError("gsc_zk_player_setholdingweapondown() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( !ps->weapon )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	WeaponDef *weapDef = BG_GetWeaponDef(ps->weapon);
+	client_t *client = &svs.clients[id];
+
+	extern void PM_StartWeaponAnim(playerState_t *ps, int anim);
+
+	if ( Scr_GetInt(0) )
+	{
+		if ( customPlayerState[id].holdingDownWeapon )
+		{
+			stackPushBool(qfalse);
+			return;
+		}
+
+		// Set new states, some again updated in PM_Weapon
+		customPlayerState[id].holdingDownWeapon = ps->weapon;
+		ps->weaponTime = weapDef->dropTime + client->ping;
+		ps->weaponDelay = 0;
+		ps->weaponstate = WEAPON_DROPPING;
+
+		// Reset ADS
+		if ( weapDef->adsOverlayReticle )
+		{
+			PM_ExitAimDownSight(ps);
+			ps->fWeaponPosFrac = 0;
+			ps->adsDelayTime = 0;
+		}
+		if ( !weapDef->adsFire )
+		{
+			ps->fWeaponPosFrac = 0;
+			ps->adsDelayTime = 0;
+		}
+
+		// Reset grenade state
+		if ( ps->pm_flags & PMF_FRAG )
+		{
+			ps->grenadeTimeLeft = 0;
+			ps->pm_flags &= ~PMF_FRAG;
+		}
+
+		// Animations
+		PM_AddEvent(ps, EV_PUTAWAY_WEAPON);
+		PM_StartWeaponAnim(ps, WEAP_DROP);
+		BG_AnimScriptEvent(ps, ANIM_ET_DROPWEAPON, 0, 1);
+	}
+	else
+	{
+		if ( customPlayerState[id].holdingDownWeapon )
+		{
+			ps->weaponTime = weapDef->raiseTime + client->ping;
+			ps->weaponstate = WEAPON_RAISING;
+			PM_AddEvent(ps, EV_RAISE_WEAPON);
+			PM_StartWeaponAnim(ps, WEAP_RAISE);
+			BG_AnimScriptEvent(ps, ANIM_ET_RAISEWEAPON, 0, 1);
+		}
+		customPlayerState[id].holdingDownWeapon = 0;
+	}
 
 	stackPushBool(qtrue);
 }
