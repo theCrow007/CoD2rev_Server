@@ -142,6 +142,7 @@ extern qboolean zk_playerMovementTrace;
 qboolean zk_IsNonSolidForClient(int entNum, int clientNum);
 void zk_ClearNonSolidForClient(int clientNum);
 int zk_GetBulletMask(int clientNum, int defaultMask);
+qboolean zk_IsNotAllowingSpectators(int clientNum);
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents);
 float zk_GetWeaponSpreadScale(int clientNum);
 float zk_GetTurretSpreadScale(int clientNum);

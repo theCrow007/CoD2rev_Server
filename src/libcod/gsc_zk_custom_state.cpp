@@ -127,6 +127,13 @@ int zk_GetBulletMask(int clientNum, int defaultMask)
 	return defaultMask;
 }
 
+qboolean zk_IsNotAllowingSpectators(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return qfalse;
+	return customPlayerState[clientNum].notAllowingSpectators;
+}
+
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents)
 {
 	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )

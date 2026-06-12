@@ -1910,4 +1910,130 @@ void gsc_zk_player_setbulletmask(scr_entref_t ref)
 	stackPushInt(old_setting);
 }
 
+// ---- spectators / hold-weapon reader / turret use ----
+
+void gsc_zk_player_isallowingspectators(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_isallowingspectators() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushBool(!customPlayerState[id].notAllowingSpectators);
+}
+
+void gsc_zk_player_setallowspectators(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setallowspectators() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	qboolean allowed;
+	gentity_t *player;
+	int i;
+	
+	allowed = Scr_GetInt(0);
+	customPlayerState[id].notAllowingSpectators = !allowed;
+
+	if ( !allowed )
+	{
+		// Stop spectating for players that already spectate the target
+		for ( i = 0; i < sv_maxclients->current.integer; i++ )
+		{
+			if ( i == id )
+				continue;
+
+			player = &g_entities[i];
+			if ( player->client && 
+				player->client->sess.connected != CON_DISCONNECTED && 
+				player->client->sess.sessionState == SESS_STATE_SPECTATOR &&
+				player->client->spectatorClient == id )
+				StopFollowing(player);
+		}
+	}
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_isholdingweapondown(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_isholdingweapondown() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *ent = &g_entities[id];
+	playerState_t *ps = SV_GameClientNum(id);
+
+	if ( !ps->weapon )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( customPlayerState[id].holdingDownWeapon )
+	{
+		stackPushBool(qtrue);
+		return;
+	}
+
+	if ( !( ent->client->sess.cmd.buttons & BUTTON_ATTACK ) && !customPlayerState[id].holdingDownWeapon )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( !( ps->weaponstate == WEAPON_DROPPING ) )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( Scr_GetNumParam() > 0 && Scr_GetInt(0) )
+	{
+		stackPushBool(ps->weaponTime > 1);
+	}
+	else
+	{
+		stackPushBool(ps->weaponTime == 1);
+	}
+}
+
+void gsc_zk_player_canuseturret(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_canuseturret() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *playerEnt = &g_entities[id];
+	gentity_t *useEnt = Scr_GetEntity(0);
+
+	if ( useEnt->s.eType != ET_TURRET )
+	{
+		stackError("gsc_zk_player_canuseturret() entity %i is not a turret", useEnt - g_entities);
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushBool(G_IsTurretUsable(useEnt, playerEnt));
+}
+
 #endif

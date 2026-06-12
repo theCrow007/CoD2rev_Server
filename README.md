@@ -4,8 +4,8 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 144 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
-lacks), plus the custom-state infrastructure and 17 native engine hooks. Every round compiles and
+**Progress: 150 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
+lacks), plus the custom-state infrastructure and 18 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
 ---
@@ -67,7 +67,7 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
 `getWeaponMoveSpeedScale`/`setWeaponMoveSpeedScale`, `getWeaponDisplayName`.
 (Reconciled Hungarian field names: `bSemiAuto`→`semiAuto`, `iRaiseTime`→`raiseTime`, etc.)
 
-### gsc_zk_entity.cpp — 30 methods
+### gsc_zk_entity.cpp — 32 methods
 `getClipmask`/`setClipmask`, `getVmax`, `getVmin`, `isTurret`, `isLinkedTo`, `getTurretOwner`,
 `setLight`, `hasTag`, `getTagOrigin`, plus item/grenade accessors: `getGrenadeFuseTime`,
 `addGrenadeFuseTime`, `getWeaponItemAmmo`/`setWeaponItemAmmo`,
@@ -75,7 +75,9 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
 entity-gravity interface: `enableGravity`/`disableGravity`/`isGravityEnabled`,
 `enableBounce`/`disableBounce`, `getEntityVelocity`/`setEntityVelocity`/`addEntityVelocity`,
 `getMaxEntityVelocity`/`setMaxEntityVelocity`, plus per-client solidity:
-`notSolidForPlayer`/`solidForPlayer`.
+`notSolidForPlayer`/`solidForPlayer`, plus `getContents` (override-aware) and `hideFromPlayer`
+(per-player invisibility via the engine's `r.clientMask`, which rev's snapshot builder already
+honors — no new hook required).
 
 ### gsc_zk_physics.cpp — entity gravity integrator (subsystem)
 Custom per-entity gravity/bounce physics for `script_model` entities, ported from zk's
@@ -94,7 +96,7 @@ custom script-constant registration; physics is unaffected), and the `EF_TAGCONN
 `getMovers`, `getEntityCount`, `setNorthYaw`, `getSavePersist`/`setSavePersist`
 (via rev's `G_GetSavePersist`/`G_SetSavePersist`).
 
-### gsc_zk_player.cpp — 79 functions
+### gsc_zk_player.cpp — 83 functions
 - **Custom-state setters:** `enableSilent`/`disableSilent`, `overrideContents`,
   `setWeaponSpreadScale`, `setTurretSpreadScale`, `setMeleeRangeScale`/`setMeleeWidthScale`/`setMeleeHeightScale`,
   `setSpeed`/`setGravity`, `setHiddenFromScoreboard`/`isHiddenFromScoreboard`,
@@ -113,7 +115,7 @@ custom script-constant registration; physics is unaffected), and the `EF_TAGCONN
   `getAddressType`, `getServerCommandQueueSize`, `getUserinfo`, `setGuid`, `muteClient`,
   `unmuteClient`, `renameClient`, `setUserinfo`, `setConfigStringForPlayer`,
   `setNorthYawForPlayer`, `resetNextReliableTime`, `connectionlessPacketToClient`,
-  `connectionlessPacketToServer`, `setHoldingWeaponDown`, plus bullet-mask: `setFireThroughWalls`, `getBulletMask`, `setBulletMask`.
+  `connectionlessPacketToServer`, `setHoldingWeaponDown`, plus bullet-mask: `setFireThroughWalls`, `getBulletMask`, `setBulletMask`, plus spectator/turret/state readers: `isAllowingSpectators`, `setAllowSpectators`, `isHoldingWeaponDown`, `canUseTurret`.
 
 ### gsc_zk_custom_state.cpp — infrastructure (not GSC functions)
 `customPlayerState[MAX_CLIENTS]` + `customEntityState[MAX_GENTITIES]` arrays, lifecycle
@@ -143,6 +145,7 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | holdingDownWeapon | `zk_GetHoldingDownWeapon` | `PM_Weapon` (force lowered weapon, early-return) + `Player_UpdateCursorHints` (suppress item hint) |
 | entity gravity | `zk_EntityHasGravity` / `zk_RunEntityGravity` | `G_RunFrameForEntity` (intercept before `physicsObject` path) |
 | bullet mask / fireThroughWalls | `zk_GetBulletMask` | `Bullet_Fire_Extended` (override trace contentmask per attacker) |
+| allow-spectators | `zk_IsNotAllowingSpectators` | `Cmd_FollowCycle_f` (skip clients who disabled being spectated) |
 | per-client solidity | `zk_IsNonSolidForClient` / `zk_ClearNonSolidForClient` / `zk_playerMovementTrace` | `SV_ClipMoveToEntity` (server skip, gated by `Pmove` wrapper in `g_active_mp.cpp`) + `SV_EmitPacketEntities` (OR `EF_NONSOLID_BMODEL` into the client's snapshot copy) + `ClientDisconnect` (clear flags) |
 
 ---
@@ -158,7 +161,7 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | `src/game/g_active_mp.cpp` | overrideContents + speed/gravity consumption; `playerMovementTrace` wrap around `Pmove` |
 | `src/game/g_weapon_mp.cpp` | weapon spread + melee scales + bullet mask (`Bullet_Fire_Extended`) |
 | `src/game/g_misc_mp.cpp` | turret spread scale |
-| `src/game/g_cmds_mp.cpp` | hiddenFromScoreboard (scoreboard builder) |
+| `src/game/g_cmds_mp.cpp` | hiddenFromScoreboard (scoreboard builder); notAllowingSpectators skip in `Cmd_FollowCycle_f` |
 | `src/server/sv_main_mp.cpp` | hiddenFromServerStatus + overrideStatusPing |
 | `src/server/sv_game_mp.cpp` | overridePing |
 | `src/bgame/bg_weapons.cpp` | holdingDownWeapon enforcement in `PM_Weapon` |
@@ -221,7 +224,7 @@ use x64-safe patterns to avoid adding instances.
 - **Snapshot deep features** — `getNumberOfEntsInSnapshot`, `notAllowingSpectators`.
 - **VoroN MySQL variant 2** — `gsc_mysql_voron.cpp` not ported.
 - **gclient setters/readers blocked on missing rev symbols** — `setOriginAndAngles`
-  (`SetClientViewAngles`), `isRechambering`/`setRechambering` (`GetCurrentWeaponSlot`),
+  (`SetClientViewAngles`), `isRechambering`/`setRechambering`/`getCurrentWeaponSlot` (rev lacks `GetCurrentWeaponSlot`),
   `isUseTouching` (`PMF_SPECTATING` differs).
 - **client_t blocked items** — `playSoundFile` (custom sound subsystem). `setHoldingWeaponDown`
   is ported (field un-trimmed, setter, `PM_Weapon` + cursor-hint hooks); deferred only is its

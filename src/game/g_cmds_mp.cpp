@@ -1305,6 +1305,11 @@ qboolean Cmd_FollowCycle_f( gentity_t *ent, int dir )
 			continue;
 		}
 
+#ifdef LIBCOD
+		// zk_libcod: setAllowSpectators - skip clients who disabled being spectated
+		{ extern qboolean zk_IsNotAllowingSpectators(int clientNum); if ( zk_IsNotAllowingSpectators(clientnum) ) continue; }
+#endif
+
 		// this is good, we can use it
 		ent->client->spectatorClient = clientnum;
 		ent->client->sess.sessionState = SESS_STATE_SPECTATOR;

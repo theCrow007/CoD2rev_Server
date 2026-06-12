@@ -777,4 +777,42 @@ void gsc_zk_entity_setmaxentityvelocity(scr_entref_t ref)
 	}
 }
 
+// ---- getContents / hideFromPlayer ----
+
+void gsc_zk_entity_getcontents(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	gentity_t *ent = &g_entities[id];
+
+	if ( id < MAX_CLIENTS && ent->client && customPlayerState[id].overrideContents )
+	{
+		stackPushInt(customPlayerState[id].contents);
+		return;
+	}
+
+	stackPushInt(ent->r.contents);
+}
+
+void gsc_zk_entity_hidefromplayer(scr_entref_t ref)
+{
+	gentity_t *player = Scr_GetEntity(0);
+	gentity_t *object = &g_entities[ref.entnum];
+
+	if ( player->s.number < MAX_CLIENTS )
+	{
+		// rev's snapshot builder skips entities whose r.clientMask bit is set
+		// for this client (sv_snapshot_mp.cpp), giving per-player invisibility.
+		// (zk's FL_INVISIBLE fast-path is dropped: rev has no such flag and the
+		//  clientMask alone performs the hide.)
+		object->r.clientMask[player->s.number >> 5] |= (1 << (player->s.number & 0x1F));
+	}
+	else
+	{
+		stackError("gsc_zk_entity_hidefromplayer() not called on a player");
+		stackPushUndefined();
+		return;
+	}
+	stackPushBool(qtrue);
+}
+
 #endif

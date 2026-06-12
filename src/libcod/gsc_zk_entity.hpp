@@ -41,4 +41,6 @@ void gsc_zk_entity_getmaxentityvelocity(scr_entref_t ref);
 void gsc_zk_entity_setmaxentityvelocity(scr_entref_t ref);
 void gsc_zk_entity_notsolidforplayer(scr_entref_t ref);
 void gsc_zk_entity_solidforplayer(scr_entref_t ref);
+void gsc_zk_entity_getcontents(scr_entref_t ref);
+void gsc_zk_entity_hidefromplayer(scr_entref_t ref);
 #endif
