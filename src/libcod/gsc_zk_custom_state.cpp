@@ -90,6 +90,43 @@ int zk_GetHoldingDownWeapon(int clientNum)
 	return customPlayerState[clientNum].holdingDownWeapon;
 }
 
+// per-client brush-model solidity
+qboolean zk_playerMovementTrace = qfalse;
+
+qboolean zk_IsNonSolidForClient(int entNum, int clientNum)
+{
+	if ( entNum < 0 || entNum >= MAX_GENTITIES )
+		return qfalse;
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return qfalse;
+	if ( !customEntityState[entNum].notSolidBrushModel )
+		return qfalse;
+	return ( customEntityState[entNum].clientMask[clientNum >> 5] & ( 1 << ( clientNum & 0x1F ) ) ) ? qtrue : qfalse;
+}
+
+void zk_ClearNonSolidForClient(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return;
+	for ( int i = 0; i < MAX_GENTITIES; i++ )
+	{
+		customEntityState[i].clientMask[clientNum >> 5] &= ~( 1 << ( clientNum & 0x1F ) );
+		if ( !customEntityState[i].clientMask[0] && !customEntityState[i].clientMask[1] )
+			customEntityState[i].notSolidBrushModel = qfalse;
+	}
+}
+
+int zk_GetBulletMask(int clientNum, int defaultMask)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return defaultMask;
+	if ( customPlayerState[clientNum].overrideBulletMask )
+		return customPlayerState[clientNum].bulletMask;
+	if ( customPlayerState[clientNum].fireThroughWalls )
+		return CONTENTS_BODY;
+	return defaultMask;
+}
+
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents)
 {
 	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )

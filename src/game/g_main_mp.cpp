@@ -1199,7 +1199,20 @@ void G_RunFrameForEntity( gentity_t *ent )
 		G_RunCorpse(ent);
 		return;
 	}
-
+	#ifdef LIBCOD
+		// zk_libcod: custom entity gravity/bounce physics for script_model entities.
+		// enablegravity() sets physicsObject=1, so this must intercept before the
+		// normal G_RunItem path below.
+		{
+			extern qboolean zk_EntityHasGravity(int entnum);
+			extern void zk_RunEntityGravity(gentity_t *ent);
+			if ( zk_EntityHasGravity(ent->s.number) )
+			{
+				zk_RunEntityGravity(ent);
+				return;
+			}
+		}
+	#endif
 	if ( ent->physicsObject )
 	{
 		G_RunItem(ent);

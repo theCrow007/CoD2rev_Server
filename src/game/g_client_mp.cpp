@@ -658,6 +658,11 @@ void ClientDisconnect( int clientNum )
 	ent = &g_entities[clientNum];
 	assert(ent->r.inuse);
 
+#ifdef LIBCOD
+	// zk_libcod: clear this client's notSolidForPlayer flags on all brush entities
+	{ extern void zk_ClearNonSolidForClient(int clientNum); zk_ClearNonSolidForClient(clientNum); }
+#endif
+
 	if ( Scr_IsSystemActive() )
 	{
 		Scr_AddString("disconnect");

@@ -99,6 +99,16 @@ void SV_ClipMoveToEntity( moveclip_t *clip, svEntity_t *entity, trace_t *trace )
 		{
 			return;   // don't clip against other missiles from our owner
 		}
+#ifdef LIBCOD
+		// zk_libcod: notSolidForPlayer - skip this brush for the passing
+		// client's movement trace only (gated so bullets etc. still collide).
+		{
+			extern qboolean zk_playerMovementTrace;
+			extern qboolean zk_IsNonSolidForClient(int entNum, int clientNum);
+			if ( zk_playerMovementTrace && zk_IsNonSolidForClient(num, clip->passEntityNum) )
+				return;
+		}
+#endif
 	}
 
 	VectorAdd(touch->r.absmin, clip->mins, mins);

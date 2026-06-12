@@ -136,6 +136,12 @@ qboolean zk_IsHiddenFromServerStatus(int clientNum);
 qboolean zk_GetPingOverride(int clientNum, int *ping);
 qboolean zk_GetStatusPingOverride(int clientNum, int *ping);
 int zk_GetHoldingDownWeapon(int clientNum);
+
+// per-client brush-model solidity (notSolidForPlayer/solidForPlayer)
+extern qboolean zk_playerMovementTrace;
+qboolean zk_IsNonSolidForClient(int entNum, int clientNum);
+void zk_ClearNonSolidForClient(int clientNum);
+int zk_GetBulletMask(int clientNum, int defaultMask);
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents);
 float zk_GetWeaponSpreadScale(int clientNum);
 float zk_GetTurretSpreadScale(int clientNum);

@@ -21,4 +21,24 @@ void gsc_zk_entity_setlight(scr_entref_t ref);
 void gsc_zk_entity_hastag(scr_entref_t ref);
 void gsc_zk_entity_gettagorigin(scr_entref_t ref);
 
+void gsc_zk_entity_getgrenadefusetime(scr_entref_t ref);
+void gsc_zk_entity_addgrenadefusetime(scr_entref_t ref);
+void gsc_zk_entity_getweaponitemammo(scr_entref_t ref);
+void gsc_zk_entity_setweaponitemammo(scr_entref_t ref);
+void gsc_zk_entity_getweaponitemclipammo(scr_entref_t ref);
+void gsc_zk_entity_setweaponitemclipammo(scr_entref_t ref);
+void gsc_zk_entity_getitemquantity(scr_entref_t ref);
+void gsc_zk_entity_setitemquantity(scr_entref_t ref);
+void gsc_zk_entity_enablegravity(scr_entref_t ref);
+void gsc_zk_entity_disablegravity(scr_entref_t ref);
+void gsc_zk_entity_isgravityenabled(scr_entref_t ref);
+void gsc_zk_entity_enablebounce(scr_entref_t ref);
+void gsc_zk_entity_disablebounce(scr_entref_t ref);
+void gsc_zk_entity_getentityvelocity(scr_entref_t ref);
+void gsc_zk_entity_setentityvelocity(scr_entref_t ref);
+void gsc_zk_entity_addentityvelocity(scr_entref_t ref);
+void gsc_zk_entity_getmaxentityvelocity(scr_entref_t ref);
+void gsc_zk_entity_setmaxentityvelocity(scr_entref_t ref);
+void gsc_zk_entity_notsolidforplayer(scr_entref_t ref);
+void gsc_zk_entity_solidforplayer(scr_entref_t ref);
 #endif

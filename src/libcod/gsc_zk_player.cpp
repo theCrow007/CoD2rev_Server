@@ -1815,4 +1815,99 @@ void gsc_zk_player_setholdingweapondown(scr_entref_t ref)
 	stackPushBool(qtrue);
 }
 
+// ---- bullet mask / fire-through-walls ----
+
+void gsc_zk_player_setfirethroughwalls(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int old_setting, new_setting;
+
+	if ( !stackGetParams("i", &new_setting) )
+	{
+		stackError("gsc_zk_player_setfirethroughwalls() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setfirethroughwalls() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	old_setting = customPlayerState[id].fireThroughWalls;
+	customPlayerState[id].fireThroughWalls = new_setting;
+
+	stackPushInt(old_setting);
+}
+
+void gsc_zk_player_getbulletmask(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getbulletmask() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( customPlayerState[id].overrideBulletMask )
+		stackPushInt(customPlayerState[id].bulletMask);
+	else if ( customPlayerState[id].fireThroughWalls )
+		stackPushInt(CONTENTS_BODY);
+	else
+		stackPushInt(MASK_SHOT);
+}
+
+void gsc_zk_player_setbulletmask(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setbulletmask() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int old_setting;
+
+	if ( Scr_GetNumParam() == 1 )
+	{
+		if ( customPlayerState[id].overrideBulletMask )
+			old_setting = customPlayerState[id].bulletMask;
+		else if ( customPlayerState[id].fireThroughWalls )
+			old_setting = CONTENTS_BODY;
+		else
+			old_setting = MASK_SHOT;
+
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
+		{
+			customPlayerState[id].overrideBulletMask = qfalse;
+			customPlayerState[id].bulletMask = 0;
+		}
+		else if ( Scr_GetType(0) == VAR_INTEGER )
+		{
+			customPlayerState[id].overrideBulletMask = qtrue;
+			customPlayerState[id].bulletMask = Scr_GetInt(0);
+		}
+		else
+		{
+			stackError("gsc_zk_player_setbulletmask() argument has a wrong type");
+			stackPushUndefined();
+			return;
+		}
+	}
+	else
+	{
+		stackError("gsc_zk_player_setbulletmask() needs exactly one argument");
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushInt(old_setting);
+}
+
 #endif

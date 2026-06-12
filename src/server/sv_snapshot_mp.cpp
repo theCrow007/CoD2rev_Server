@@ -1416,6 +1416,16 @@ void SV_EmitPacketEntities( int entNum, int from_num_entities, int from_first_en
 		{
 			newent = &svs.snapshotEntities[(to_first_entity + newindex) % svs.numSnapshotEntities];
 			newnum = newent->number;
+#ifdef LIBCOD
+			// zk_libcod: notSolidForPlayer - mark the brush non-solid in THIS
+			// client's snapshot copy so client-side prediction matches the
+			// server skip in SV_ClipMoveToEntity. entNum is the client index.
+			{
+				extern qboolean zk_IsNonSolidForClient(int e, int c);
+				if ( zk_IsNonSolidForClient(newnum, entNum) )
+					newent->eFlags |= EF_NONSOLID_BMODEL;
+			}
+#endif
 		}
 
 		if ( oldindex >= from_num_entities )

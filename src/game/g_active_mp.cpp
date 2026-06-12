@@ -795,7 +795,13 @@ void SpectatorThink( gentity_t *ent, usercmd_t *ucmd )
 	pm.tracemask = ( CONTENTS_SOLID | CONTENTS_GLASS | CONTENTS_SKY | CONTENTS_UNKNOWN );   // spectators can fly through bodies
 	pm.handler = PMOVE_HANDLER_SERVER;
 
+#ifdef LIBCOD
+	{ extern qboolean zk_playerMovementTrace; zk_playerMovementTrace = qtrue; }
+#endif
 	Pmove( &pm ); // JPW NERVE
+#ifdef LIBCOD
+	{ extern qboolean zk_playerMovementTrace; zk_playerMovementTrace = qfalse; }
+#endif
 
 	// save results of pmove
 	VectorCopy(client->ps.origin, ent->r.currentOrigin);
@@ -1117,7 +1123,13 @@ void ClientThink_real( gentity_t *ent, usercmd_t *ucmd )
 	client->fGunYaw = viewangles[YAW];
 
 	assert(!pm.mantleStarted);
+#ifdef LIBCOD
+	{ extern qboolean zk_playerMovementTrace; zk_playerMovementTrace = qtrue; }
+#endif
 	Pmove(&pm);
+#ifdef LIBCOD
+	{ extern qboolean zk_playerMovementTrace; zk_playerMovementTrace = qfalse; }
+#endif
 
 	if ( pm.mantleStarted )
 	{

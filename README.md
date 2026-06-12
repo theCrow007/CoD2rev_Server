@@ -4,8 +4,8 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 121 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
-lacks), plus the custom-state infrastructure and 14 native engine hooks. Every round compiles and
+**Progress: 144 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
+lacks), plus the custom-state infrastructure and 17 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
 ---
@@ -67,15 +67,34 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
 `getWeaponMoveSpeedScale`/`setWeaponMoveSpeedScale`, `getWeaponDisplayName`.
 (Reconciled Hungarian field names: `bSemiAuto`→`semiAuto`, `iRaiseTime`→`raiseTime`, etc.)
 
-### gsc_zk_entity.cpp — 10 methods
+### gsc_zk_entity.cpp — 30 methods
 `getClipmask`/`setClipmask`, `getVmax`, `getVmin`, `isTurret`, `isLinkedTo`, `getTurretOwner`,
-`setLight`, `hasTag`, `getTagOrigin`.
+`setLight`, `hasTag`, `getTagOrigin`, plus item/grenade accessors: `getGrenadeFuseTime`,
+`addGrenadeFuseTime`, `getWeaponItemAmmo`/`setWeaponItemAmmo`,
+`getWeaponItemClipAmmo`/`setWeaponItemClipAmmo`, `getItemQuantity`/`setItemQuantity`, plus the
+entity-gravity interface: `enableGravity`/`disableGravity`/`isGravityEnabled`,
+`enableBounce`/`disableBounce`, `getEntityVelocity`/`setEntityVelocity`/`addEntityVelocity`,
+`getMaxEntityVelocity`/`setMaxEntityVelocity`, plus per-client solidity:
+`notSolidForPlayer`/`solidForPlayer`.
+
+### gsc_zk_physics.cpp — entity gravity integrator (subsystem)
+Custom per-entity gravity/bounce physics for `script_model` entities, ported from zk's
+`G_RunGravityModelNoBounce` / `G_RunGravityModelWithBounce` / `G_BounceGravityModel` (themselves
+based on rev's `G_RunItem`/`G_RunMissile`/`G_BounceMissile`). Driven by
+`customEntityState[].gravityType` (`GRAVITY_NONE`/`NO_BOUNCE`/`BOUNCE`) and dispatched from
+`G_RunFrameForEntity` via `zk_EntityHasGravity()`/`zk_RunEntityGravity()`. Missing rev helpers
+(`VectorClampLength`, `IsNullVector`) implemented inline; `VectorCross`→`Vec3Cross`,
+`VecToAngles`→`vectoangles`; zk's `SV_Trace` signature is identical to rev's so the `collideModels`
+arg passes through verbatim. **This is the feature most in need of in-game physics validation.**
+Two documented deviations: the optional `land`/`bounce` script notifies are omitted (they need
+custom script-constant registration; physics is unaffected), and the `EF_TAGCONNECT`
+`Missile_TraceNoContents` edge case is skipped (rev lacks that primitive).
 
 ### gsc_zk_level.cpp — 5 functions
 `getMovers`, `getEntityCount`, `setNorthYaw`, `getSavePersist`/`setSavePersist`
 (via rev's `G_GetSavePersist`/`G_SetSavePersist`).
 
-### gsc_zk_player.cpp — 76 functions
+### gsc_zk_player.cpp — 79 functions
 - **Custom-state setters:** `enableSilent`/`disableSilent`, `overrideContents`,
   `setWeaponSpreadScale`, `setTurretSpreadScale`, `setMeleeRangeScale`/`setMeleeWidthScale`/`setMeleeHeightScale`,
   `setSpeed`/`setGravity`, `setHiddenFromScoreboard`/`isHiddenFromScoreboard`,
@@ -94,7 +113,7 @@ New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
   `getAddressType`, `getServerCommandQueueSize`, `getUserinfo`, `setGuid`, `muteClient`,
   `unmuteClient`, `renameClient`, `setUserinfo`, `setConfigStringForPlayer`,
   `setNorthYawForPlayer`, `resetNextReliableTime`, `connectionlessPacketToClient`,
-  `connectionlessPacketToServer`, `setHoldingWeaponDown`.
+  `connectionlessPacketToServer`, `setHoldingWeaponDown`, plus bullet-mask: `setFireThroughWalls`, `getBulletMask`, `setBulletMask`.
 
 ### gsc_zk_custom_state.cpp — infrastructure (not GSC functions)
 `customPlayerState[MAX_CLIENTS]` + `customEntityState[MAX_GENTITIES]` arrays, lifecycle
@@ -122,6 +141,9 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | overridePing | `zk_GetPingOverride` | `SV_GetClientPing` |
 | overrideStatusPing | `zk_GetStatusPingOverride` | `SVC_Status` player line |
 | holdingDownWeapon | `zk_GetHoldingDownWeapon` | `PM_Weapon` (force lowered weapon, early-return) + `Player_UpdateCursorHints` (suppress item hint) |
+| entity gravity | `zk_EntityHasGravity` / `zk_RunEntityGravity` | `G_RunFrameForEntity` (intercept before `physicsObject` path) |
+| bullet mask / fireThroughWalls | `zk_GetBulletMask` | `Bullet_Fire_Extended` (override trace contentmask per attacker) |
+| per-client solidity | `zk_IsNonSolidForClient` / `zk_ClearNonSolidForClient` / `zk_playerMovementTrace` | `SV_ClipMoveToEntity` (server skip, gated by `Pmove` wrapper in `g_active_mp.cpp`) + `SV_EmitPacketEntities` (OR `EF_NONSOLID_BMODEL` into the client's snapshot copy) + `ClientDisconnect` (clear flags) |
 
 ---
 
@@ -130,17 +152,20 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | File | Purpose |
 |---|---|
 | `src/libcod/gsc.cpp` | all table registrations + module includes |
-| `src/game/g_client_mp.cpp` | reset custom player state on `ClientConnect` |
+| `src/game/g_client_mp.cpp` | reset custom player state on `ClientConnect`; clear solidity flags on `ClientDisconnect` |
 | `src/game/g_utils_mp.cpp` | reset custom entity state on `G_InitGentity` |
 | `src/bgame/bg_misc.cpp` | silent event suppression |
-| `src/game/g_active_mp.cpp` | overrideContents + speed/gravity consumption |
-| `src/game/g_weapon_mp.cpp` | weapon spread + melee scales |
+| `src/game/g_active_mp.cpp` | overrideContents + speed/gravity consumption; `playerMovementTrace` wrap around `Pmove` |
+| `src/game/g_weapon_mp.cpp` | weapon spread + melee scales + bullet mask (`Bullet_Fire_Extended`) |
 | `src/game/g_misc_mp.cpp` | turret spread scale |
 | `src/game/g_cmds_mp.cpp` | hiddenFromScoreboard (scoreboard builder) |
 | `src/server/sv_main_mp.cpp` | hiddenFromServerStatus + overrideStatusPing |
 | `src/server/sv_game_mp.cpp` | overridePing |
 | `src/bgame/bg_weapons.cpp` | holdingDownWeapon enforcement in `PM_Weapon` |
 | `src/game/player_use_mp.cpp` | holdingDownWeapon suppresses item cursor hint |
+| `src/game/g_main_mp.cpp` | entity-gravity dispatch in `G_RunFrameForEntity` |
+| `src/server/sv_world_mp.cpp` | per-client solidity skip in `SV_ClipMoveToEntity` |
+| `src/server/sv_snapshot_mp.cpp` | per-client `EF_NONSOLID_BMODEL` in `SV_EmitPacketEntities` |
 
 ---
 
@@ -171,8 +196,21 @@ use x64-safe patterns to avoid adding instances.
 
 ### Deferred features (need deeper work or subsystems)
 - **gsc_bots** — all bot delta functions need zk's bot-usercmd hook / testclient state.
-- **Entity stragglers** — `getItemQuantity`/`setItemQuantity` (`s.item` vs rev's `s.index` union),
-  `getTagAngles` (`FL_LINKTO_ENABLED` missing in rev), the gravity/velocity/bounce/solidity cluster.
+- **Entity stragglers** — `getTagAngles` (`FL_LINKTO_ENABLED` missing in rev). The entity-gravity
+  physics cluster and per-client solidity (`notSolidForPlayer`/`solidForPlayer`) are now **ported**;
+  the `customEntityState` cluster is complete. Solidity avoided zk's invasive `MSG_WriteDeltaStruct`
+  signature change (3 extra params threaded through netcode) by ORing `EF_NONSOLID_BMODEL` into the
+  per-client snapshot copy in `SV_EmitPacketEntities` instead.
+- **Bullet-path stragglers** — the core `fireThroughWalls`/`getBulletMask`/`setBulletMask` are now
+  ported (trace-contentmask override in `Bullet_Fire_Extended`). Deferred: the dropping-bullets
+  ballistics subsystem (`enableBulletDrop`/`setBulletVelocity`/`setBulletDrag`/`setBulletModel`/
+  `enableBulletImpacts` — needs the trimmed `droppingBullet*` state fields + zk's
+  `droppingBullet_t` projectile system and `custom_Bullet_Fire_Drop`); `setFireRangeScale`
+  (consumed in `Bullet_GetDamage`, which lacks the attacker in scope); and the through-walls
+  bullet-impact visual recreation (`G_TempEntity` effect when the body-only mask skips the wall hit).
+- **Weapons stragglers** — `setDefaultWeapon` (zk byte-patches hardcoded stock-binary addresses —
+  fundamentally incompatible with rev's native model), `ignoreWeapon`/`resetIgnoredWeapons` (need
+  zk's ignore-list globals + a pickup-time consumption hook).
 - **fireRangeScale** — rev's `Bullet_GetDamage(wp, dist)` has no attacker in scope; needs threading
   `clientNum` through the signature + callers.
 - **Bullet-path features** — `fireThroughWalls`, `bulletMask`, bullet drag/velocity/model: deep in

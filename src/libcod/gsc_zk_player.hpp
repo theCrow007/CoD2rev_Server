@@ -93,4 +93,7 @@ void gsc_zk_player_resetnextreliabletime(scr_entref_t ref);
 void gsc_zk_player_connectionlesspackettoclient(scr_entref_t ref);
 void gsc_zk_player_connectionlesspackettoserver(scr_entref_t ref);
 void gsc_zk_player_setholdingweapondown(scr_entref_t ref);
+void gsc_zk_player_setfirethroughwalls(scr_entref_t ref);
+void gsc_zk_player_getbulletmask(scr_entref_t ref);
+void gsc_zk_player_setbulletmask(scr_entref_t ref);
 #endif

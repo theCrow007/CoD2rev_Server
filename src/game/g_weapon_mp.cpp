@@ -731,10 +731,17 @@ void Bullet_Fire_Extended( const gentity_t *source, gentity_t *attacker,
 		dflags |= DAMAGE_NO_ARMOR;
 	}
 
+	int zkBulletMask = MASK_SHOT;
+#ifdef LIBCOD
+	// zk_libcod: fireThroughWalls / setBulletMask - override the bullet trace
+	// contentmask for this attacker (CONTENTS_BODY passes through walls).
+	{ extern int zk_GetBulletMask(int clientNum, int defaultMask); zkBulletMask = zk_GetBulletMask(attacker->s.number, MASK_SHOT); }
+#endif
+
 	if ( wp->weapDef->rifleBullet )
-		G_LocationalTrace(&tr, start, end, source->s.number, MASK_SHOT, riflePriorityMap);
+		G_LocationalTrace(&tr, start, end, source->s.number, zkBulletMask, riflePriorityMap);
 	else
-		G_LocationalTrace(&tr, start, end, source->s.number, MASK_SHOT, bulletPriorityMap);
+		G_LocationalTrace(&tr, start, end, source->s.number, zkBulletMask, bulletPriorityMap);
 
 	Vec3Lerp(start, end, tr.fraction, hitPos);
 	G_CheckHitTriggerDamage(attacker, start, hitPos, wp->weapDef->damage, mod);
