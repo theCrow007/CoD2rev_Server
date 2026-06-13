@@ -169,6 +169,7 @@ scr_function_t scriptFunctions[] =
 	{"mysql_async_getresult_and_free", gsc_mysql_async_getresult_and_free, 0},
 	{"mysql_async_initializer", gsc_mysql_async_initializer, 0},
 	{"mysql_reuse_connection", gsc_mysql_reuse_connection, 0},
+	{"mysql_initialize", gsc_mysql_initialize, 0},
 #endif
 
 #if LIBCOD_COMPILE_PLAYER == 1
