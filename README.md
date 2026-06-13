@@ -4,8 +4,8 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 150 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
-lacks), plus the custom-state infrastructure and 18 native engine hooks. Every round compiles and
+**Progress: 154 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
+lacks), plus the custom-state infrastructure and 20 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
 ---
@@ -48,7 +48,44 @@ call-site edits in rev's C source.
 **MySQL note:** rev ships the MySQL *headers* (`src/libcod/mysql/include/`, v5.7.6 / libmysql
 6.1.6) but **not** the client library. Any MySQL variant build needs `libmysqlclient` provided
 (matching the build arch) — either dropped into `src/libcod/mysql/unix/lib/` or installed
-system-wide. The VoroN variant (`gsc_mysql_voron.cpp`) is not yet ported; use `mysql1` or `nomysql`.
+system-wide.
+
+### MySQL variants
+
+Two complete, **mutually exclusive** MySQL backends are available; you pick one at build time.
+The selection swaps the entire function set — there is no coexistence (and so no symbol clash),
+because the Makefile compiles only the chosen source file.
+
+| `MYSQL_VARIANT` | Source file | `-D` flag | GSC API exposed |
+|---|---|---|---|
+| `0` (default) | — | — | none (MySQL off) |
+| `1` (classic) | `gsc_mysql.cpp` | `LIBCOD_COMPILE_MYSQL=1` | `mysql_init`, `mysql_real_connect`, `mysql_query`, `mysql_store_result`/`fetch_row`/`free_result`, `mysql_async_create_query`(`_nosave`), `mysql_async_getdone_list`, `mysql_async_getresult_and_free`, `mysql_async_initializer`, `mysql_reuse_connection`, … (21 fns) |
+| `2` (VoroN) | `gsc_mysql_voron.cpp` | `LIBCOD_COMPILE_MYSQL_VORON=1` | `mysql_initialize` (one-step connect), `async_mysql_initialize`/`create_query`(`_nosave`)/`checkdone`/`free_task`/`errno`/`error`/`num_rows`/…, plus entity methods `async_mysql_create_entity_query`(`_nosave`) (31 fns) |
+
+Both variants share the synchronous names (`mysql_close`/`query`/`errno`/`error`/`store_result`/…)
+but back them with different implementations, which is exactly why they cannot be compiled
+together. A GSC script written for one variant will hit "unknown function" on the other, so
+standardize a server on a single variant.
+
+**Build steps:**
+
+1. Provide `libmysqlclient` for your build arch (install `libmysqlclient-dev` + `libssl-dev`, or
+   drop the lib into `src/libcod/mysql/unix/lib/`). The build links `-lmysqlclient` for variants
+   1 and 2 — a missing lib shows up as an *undefined-reference at the final link*, not a compile error.
+2. Build the variant you want:
+   - `./build.sh mysql1` — classic
+   - `./build.sh mysql2` — VoroN
+   - `./build.sh nomysql` — off
+   - `./build.sh` — interactive prompt (0/1/2)
+   - append make args as needed, e.g. `./build.sh mysql2 ARCH=x86`
+3. Switching variants: `./build.sh clean` first (stale objects otherwise linger), then rebuild.
+4. Verify the right set linked in:
+   - variant 1: `strings <binary> | grep -E "mysql_init|mysql_async_create_query"`
+   - variant 2: `strings <binary> | grep -E "mysql_initialize|async_mysql_create_query"`
+
+Compile-verified for both variants; **not** link-tested in the sandbox (no client lib there). The
+handle-as-int casts are correct for the x86 target (they would truncate on x64, same as rev's own
+base MySQL code).
 
 ---
 
@@ -96,7 +133,7 @@ custom script-constant registration; physics is unaffected), and the `EF_TAGCONN
 `getMovers`, `getEntityCount`, `setNorthYaw`, `getSavePersist`/`setSavePersist`
 (via rev's `G_GetSavePersist`/`G_SetSavePersist`).
 
-### gsc_zk_player.cpp — 83 functions
+### gsc_zk_player.cpp — 87 functions
 - **Custom-state setters:** `enableSilent`/`disableSilent`, `overrideContents`,
   `setWeaponSpreadScale`, `setTurretSpreadScale`, `setMeleeRangeScale`/`setMeleeWidthScale`/`setMeleeHeightScale`,
   `setSpeed`/`setGravity`, `setHiddenFromScoreboard`/`isHiddenFromScoreboard`,
@@ -146,6 +183,8 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | entity gravity | `zk_EntityHasGravity` / `zk_RunEntityGravity` | `G_RunFrameForEntity` (intercept before `physicsObject` path) |
 | bullet mask / fireThroughWalls | `zk_GetBulletMask` | `Bullet_Fire_Extended` (override trace contentmask per attacker) |
 | allow-spectators | `zk_IsNotAllowingSpectators` | `Cmd_FollowCycle_f` (skip clients who disabled being spectated) |
+| per-player step size | `zk_GetStepSizeOverride` | `PM_StepSlideMove` (override STEPSIZE / STEPSIZE_PRONE) |
+| per-player jump height/slowdown | `zk_GetJumpHeightOverride`, `zk_GetJumpSlowdownOverride` | `bg_jump.cpp` (swap `jump_height`/`jump_slowdownEnable` dvar reads for per-player accessors across `Jump_IsPlayerAboveMax`/`Jump_GetStepHeight`/`Jump_ClampVelocity`/`Jump_*Slowdown*`/`Jump_Check`) |
 | per-client solidity | `zk_IsNonSolidForClient` / `zk_ClearNonSolidForClient` / `zk_playerMovementTrace` | `SV_ClipMoveToEntity` (server skip, gated by `Pmove` wrapper in `g_active_mp.cpp`) + `SV_EmitPacketEntities` (OR `EF_NONSOLID_BMODEL` into the client's snapshot copy) + `ClientDisconnect` (clear flags) |
 
 ---
@@ -168,6 +207,8 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | `src/game/player_use_mp.cpp` | holdingDownWeapon suppresses item cursor hint |
 | `src/game/g_main_mp.cpp` | entity-gravity dispatch in `G_RunFrameForEntity` |
 | `src/server/sv_world_mp.cpp` | per-client solidity skip in `SV_ClipMoveToEntity` |
+| `src/bgame/bg_slidemove.cpp` | per-player step size override in `PM_StepSlideMove` |
+| `src/bgame/bg_jump.cpp` | per-player jump height + jump slowdown overrides (dvar reads → accessors) |
 | `src/server/sv_snapshot_mp.cpp` | per-client `EF_NONSOLID_BMODEL` in `SV_EmitPacketEntities` |
 
 ---
@@ -218,11 +259,13 @@ use x64-safe patterns to avoid adding instances.
   `clientNum` through the signature + callers.
 - **Bullet-path features** — `fireThroughWalls`, `bulletMask`, bullet drag/velocity/model: deep in
   the `Bullet_Fire_Extended` trace/penetration loop.
-- **Subsystems (struct fields trimmed, need un-trimming + hooks):** jump (full pmove physics
-  replacement — high risk), objectives (`objective_player_*`), custom sound (`playSoundFile` family),
+- **Subsystems (struct fields trimmed, need un-trimming + hooks):** jump height/slowdown DONE
+  (`setJumpHeight`/`setJumpSlowdownEnable` via per-player accessors threaded into rev's native
+  `bg_jump.cpp` — no `Jump_Check` replacement needed; `setStepSize`/`setProneStepSize` also DONE),
+  objectives (`objective_player_*`), custom sound (`playSoundFile` family),
   animation (`setAnimation`), talker icons, the `previousButtons` button-edge logic.
 - **Snapshot deep features** — `getNumberOfEntsInSnapshot`, `notAllowingSpectators`.
-- **VoroN MySQL variant 2** — `gsc_mysql_voron.cpp` not ported.
+- **VoroN MySQL variant 2** — PORTED: `gsc_mysql_voron.cpp`/`.hpp` added (31 functions; sync + async + 2 entity-query methods), registered under `LIBCOD_COMPILE_MYSQL_VORON`, builds with `MYSQL_VARIANT=2` (needs the user's `libmysqlclient`). Base MySQL (variant 1) was already present in upstream. Compile-verified; not link-tested in sandbox (no client lib).
 - **gclient setters/readers blocked on missing rev symbols** — `setOriginAndAngles`
   (`SetClientViewAngles`), `isRechambering`/`setRechambering`/`getCurrentWeaponSlot` (rev lacks `GetCurrentWeaponSlot`),
   `isUseTouching` (`PMF_SPECTATING` differs).

@@ -65,6 +65,10 @@ typedef struct customPlayerState_s
 	float stepSize;
 	qboolean overrideProneStepSize;
 	float proneStepSize;
+	qboolean overrideJumpHeight;
+	int jumpHeight;
+	qboolean overrideJumpSlowdown;
+	int jumpSlowdown;
 
 	// --- melee / fire / spread scaling ---
 	float meleeHeightScale;
@@ -143,6 +147,9 @@ qboolean zk_IsNonSolidForClient(int entNum, int clientNum);
 void zk_ClearNonSolidForClient(int clientNum);
 int zk_GetBulletMask(int clientNum, int defaultMask);
 qboolean zk_IsNotAllowingSpectators(int clientNum);
+qboolean zk_GetStepSizeOverride(int clientNum, qboolean prone, float *out);
+int zk_GetJumpHeightOverride(int clientNum, float *out);
+int zk_GetJumpSlowdownOverride(int clientNum, int *out);
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents);
 float zk_GetWeaponSpreadScale(int clientNum);
 float zk_GetTurretSpreadScale(int clientNum);

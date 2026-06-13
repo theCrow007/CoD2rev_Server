@@ -2036,4 +2036,134 @@ void gsc_zk_player_canuseturret(scr_entref_t ref)
 	stackPushBool(G_IsTurretUsable(useEnt, playerEnt));
 }
 
+// ---- per-player step size ----
+
+void gsc_zk_player_setstepsize(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setstepsize() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( Scr_GetNumParam() > 0 )
+	{
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
+		{
+			customPlayerState[id].overrideStepSize = qfalse;
+		}
+		else
+		{
+			customPlayerState[id].overrideStepSize = qtrue;
+			customPlayerState[id].stepSize = Scr_GetFloat(0);
+		}
+
+		stackPushBool(qtrue);
+	}
+	else
+	{
+		stackError("gsc_zk_player_setstepsize() missing argument");
+		stackPushUndefined();
+		return;
+	}
+}
+
+void gsc_zk_player_setpronestepsize(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setpronestepsize() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( Scr_GetNumParam() > 0 )
+	{
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
+		{
+			customPlayerState[id].overrideProneStepSize = qfalse;
+		}
+		else
+		{
+			customPlayerState[id].overrideProneStepSize = qtrue;
+			customPlayerState[id].proneStepSize = Scr_GetFloat(0);
+		}
+
+		stackPushBool(qtrue);
+	}
+	else
+	{
+		stackError("gsc_zk_player_setpronestepsize() missing argument");
+		stackPushUndefined();
+		return;
+	}
+}
+
+// ---- per-player jump height / slowdown ----
+
+void gsc_zk_player_setjumpheight(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	float jump_height;
+
+	if ( !stackGetParams("f", &jump_height) )
+	{
+		stackError("gsc_zk_player_setjumpheight() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setjumpheight() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( jump_height < 0 )
+		customPlayerState[id].overrideJumpHeight = false;
+	else
+	{
+		customPlayerState[id].overrideJumpHeight = true;
+		customPlayerState[id].jumpHeight = jump_height;
+	}
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setjumpslowdownenable(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int slowdown;
+
+	if ( !stackGetParams("i", &slowdown) )
+	{
+		stackError("gsc_zk_player_setjumpslowdownenable() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setjumpslowdownenable() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( slowdown == -1 )
+		customPlayerState[id].overrideJumpSlowdown = false;
+	else
+	{
+		customPlayerState[id].overrideJumpSlowdown = true;
+		customPlayerState[id].jumpSlowdown = slowdown;
+	}
+
+	stackPushBool(qtrue);
+}
+
 #endif

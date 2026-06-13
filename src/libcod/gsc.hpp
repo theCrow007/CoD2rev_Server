@@ -49,6 +49,10 @@
 #include "gsc_mysql.hpp"
 #endif
 
+#if LIBCOD_COMPILE_MYSQL_VORON == 1
+#include "gsc_mysql_voron.hpp"
+#endif
+
 #if LIBCOD_COMPILE_PLAYER == 1
 #include "gsc_player.hpp"
 #endif

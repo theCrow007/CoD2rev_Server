@@ -100,4 +100,8 @@ void gsc_zk_player_isallowingspectators(scr_entref_t ref);
 void gsc_zk_player_setallowspectators(scr_entref_t ref);
 void gsc_zk_player_isholdingweapondown(scr_entref_t ref);
 void gsc_zk_player_canuseturret(scr_entref_t ref);
+void gsc_zk_player_setstepsize(scr_entref_t ref);
+void gsc_zk_player_setpronestepsize(scr_entref_t ref);
+void gsc_zk_player_setjumpheight(scr_entref_t ref);
+void gsc_zk_player_setjumpslowdownenable(scr_entref_t ref);
 #endif

@@ -178,4 +178,50 @@ void zk_ApplyPlayerSpeedGravity(int clientNum, int *speed, int *gravity)
 		*gravity = customPlayerState[clientNum].gravity;
 }
 
+
+qboolean zk_GetStepSizeOverride(int clientNum, qboolean prone, float *out)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return qfalse;
+	if ( prone )
+	{
+		if ( customPlayerState[clientNum].overrideProneStepSize )
+		{
+			*out = customPlayerState[clientNum].proneStepSize;
+			return qtrue;
+		}
+	}
+	else if ( customPlayerState[clientNum].overrideStepSize )
+	{
+		*out = customPlayerState[clientNum].stepSize;
+		return qtrue;
+	}
+	return qfalse;
+}
+
+
+int zk_GetJumpHeightOverride(int clientNum, float *out)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return 0;
+	if ( customPlayerState[clientNum].overrideJumpHeight )
+	{
+		*out = (float)customPlayerState[clientNum].jumpHeight;
+		return 1;
+	}
+	return 0;
+}
+
+int zk_GetJumpSlowdownOverride(int clientNum, int *out)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return 0;
+	if ( customPlayerState[clientNum].overrideJumpSlowdown )
+	{
+		*out = customPlayerState[clientNum].jumpSlowdown;
+		return 1;
+	}
+	return 0;
+}
+
 #endif

@@ -74,6 +74,10 @@ void PM_StepSlideMove( pmove_t *pm, pml_t *pml, qboolean gravity )
 		fStepSize = STEPSIZE_PRONE;
 	else
 		fStepSize = STEPSIZE;
+#ifdef LIBCOD
+	{ extern qboolean zk_GetStepSizeOverride(int clientNum, qboolean prone, float *out);
+	  zk_GetStepSizeOverride(ps->clientNum, (ps->pm_flags & PMF_PRONE) != 0, &fStepSize); }
+#endif
 
 	if ( ps->groundEntityNum == ENTITYNUM_NONE )
 	{

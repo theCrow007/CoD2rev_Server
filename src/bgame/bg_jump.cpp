@@ -7,6 +7,29 @@ dvar_t *jump_slowdownEnable;
 dvar_t *jump_ladderPushVel;
 dvar_t *jump_spreadAdd;
 
+// zk_libcod: per-player jump height / slowdown override (falls back to dvar)
+static float zk_jumpHeight( const playerState_t *ps )
+{
+#ifdef LIBCOD
+	extern int zk_GetJumpHeightOverride(int clientNum, float *out);
+	float v;
+	if ( zk_GetJumpHeightOverride(ps->clientNum, &v) )
+		return v;
+#endif
+	return jump_height->current.decimal;
+}
+
+static qboolean zk_jumpSlowdownEnable( const playerState_t *ps )
+{
+#ifdef LIBCOD
+	extern int zk_GetJumpSlowdownOverride(int clientNum, int *out);
+	int v;
+	if ( zk_GetJumpSlowdownOverride(ps->clientNum, &v) )
+		return v != 0;
+#endif
+	return jump_slowdownEnable->current.boolean;
+}
+
 #define JUMP_LAND_SLOWDOWN_TIME 1800
 
 /*
@@ -33,7 +56,7 @@ Jump_IsPlayerAboveMax
 bool Jump_IsPlayerAboveMax( playerState_t *ps )
 {
 	assert(ps->pm_flags & PMF_TIME_LAND);
-	return ps->origin[2] >= ps->jumpOriginZ + jump_height->current.decimal;
+	return ps->origin[2] >= ps->jumpOriginZ + zk_jumpHeight(ps);
 }
 
 /*
@@ -47,16 +70,16 @@ bool Jump_GetStepHeight( playerState_t *ps, const vec3_t origin, float *stepSize
 	assert(origin);
 	assert(stepSize);
 
-	if ( ps->jumpOriginZ + jump_height->current.decimal <= origin[2] )
+	if ( ps->jumpOriginZ + zk_jumpHeight(ps) <= origin[2] )
 	{
 		return false;
 	}
 
 	*stepSize = jump_stepSize->current.decimal;
 
-	if ( origin[2] + *stepSize > ps->jumpOriginZ + jump_height->current.decimal )
+	if ( origin[2] + *stepSize > ps->jumpOriginZ + zk_jumpHeight(ps) )
 	{
-		*stepSize = ps->jumpOriginZ + jump_height->current.decimal - origin[2];
+		*stepSize = ps->jumpOriginZ + zk_jumpHeight(ps) - origin[2];
 	}
 
 	return true;
@@ -91,7 +114,7 @@ void Jump_ClampVelocity( playerState_t *ps, const vec3_t origin )
 		return;
 	}
 
-	heightDiff = ps->jumpOriginZ + jump_height->current.decimal - ps->origin[2];
+	heightDiff = ps->jumpOriginZ + zk_jumpHeight(ps) - ps->origin[2];
 
 	if ( heightDiff < 0.1 )
 	{
@@ -116,7 +139,7 @@ float Jump_ReduceFriction( playerState_t *ps )
 {
 	assert(ps->pm_flags & PMF_TIME_LAND);
 
-	if ( !jump_slowdownEnable->current.boolean )
+	if ( !zk_jumpSlowdownEnable(ps) )
 	{
 		return 1.0;
 	}
@@ -139,7 +162,7 @@ float Jump_GetLandFactor( playerState_t *ps )
 	assert(ps->pm_flags & PMF_TIME_LAND);
 	assert(ps->pm_time <= JUMP_LAND_SLOWDOWN_TIME);
 
-	if ( !jump_slowdownEnable->current.boolean )
+	if ( !zk_jumpSlowdownEnable(ps) )
 	{
 		return 1.0;
 	}
@@ -162,7 +185,7 @@ float Jump_GetSlowdownFriction( playerState_t *ps )
 	assert(ps->pm_flags & PMF_TIME_LAND);
 	assert(ps->pm_time <= JUMP_LAND_SLOWDOWN_TIME);
 
-	if ( !jump_slowdownEnable->current.boolean )
+	if ( !zk_jumpSlowdownEnable(ps) )
 	{
 		return 1.0;
 	}
@@ -184,7 +207,7 @@ void Jump_ApplySlowdown( playerState_t *ps )
 {
 	assert(ps->pm_flags & PMF_TIME_LAND);
 
-	if ( !jump_slowdownEnable->current.boolean )
+	if ( !zk_jumpSlowdownEnable(ps) )
 	{
 		VectorScale(ps->velocity, 1.0, ps->velocity);
 		return;
@@ -363,7 +386,7 @@ bool Jump_Check( pmove_t *pm, pml_t *pml )
 		return false;
 	}
 
-	Jump_Start(pm, pml, jump_height->current.decimal);
+	Jump_Start(pm, pml, zk_jumpHeight(ps));
 	Jump_AddSurfaceEvent(ps, pml);
 
 	if ( ps->pm_flags & PMF_LADDER )
