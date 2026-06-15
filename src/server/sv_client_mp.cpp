@@ -1650,6 +1650,16 @@ gentity_t *SV_AddTestClient()
 		return NULL;
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: setNextTestClientName() overrides the default bot%d name
+	extern const char *zk_GetNextTestClientName(void);
+	const char *zkTestName = zk_GetNextTestClientName();
+	if ( zkTestName )
+		snprintf(userinfo, sizeof(userinfo),
+		    "connect \"\\cg_predictItems\\1\\cl_anonymous\\0\\model\\multi\\snaps\\20\\rate\\5000\\name\\%s\\password\\%s\\protocol\\%d\"",
+		    zkTestName, g_password->current.string, sv_protocol->current.integer);
+	else
+#endif
 	snprintf(
 	    userinfo,
 	    sizeof(userinfo),

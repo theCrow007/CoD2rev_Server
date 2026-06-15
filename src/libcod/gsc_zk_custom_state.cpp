@@ -13,6 +13,8 @@ void zk_ResetCustomPlayerState(int clientNum)
 		return;
 
 	memset(&customPlayerState[clientNum], 0, sizeof(customPlayerState_t));
+	for ( int oi = 0; oi < MAX_OBJECTIVES; oi++ )
+		customPlayerState[clientNum].objectives[oi].entNum = ENTITYNUM_NONE;
 
 	// sensible non-zero defaults
 	customPlayerState[clientNum].meleeHeightScale = 1.0f;
@@ -222,6 +224,197 @@ int zk_GetJumpSlowdownOverride(int clientNum, int *out)
 		return 1;
 	}
 	return 0;
+}
+
+
+void zk_AddEntToPlayerSnapshots(int clientNum, int entNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return;
+	int n = customPlayerState[clientNum].numForcedSnapshotEnts;
+	for ( int i = 0; i < n; i++ )
+	{
+		if ( customPlayerState[clientNum].forcedSnapshotEnts[i] == entNum )
+			return;
+	}
+	if ( n < ZK_MAX_SNAPSHOT_ENTITIES )
+	{
+		customPlayerState[clientNum].forcedSnapshotEnts[n] = entNum;
+		customPlayerState[clientNum].numForcedSnapshotEnts++;
+	}
+}
+
+void zk_RemoveEntFromPlayerSnapshots(int clientNum, int entNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return;
+	int n = customPlayerState[clientNum].numForcedSnapshotEnts;
+	for ( int i = 0; i < n; i++ )
+	{
+		if ( customPlayerState[clientNum].forcedSnapshotEnts[i] == entNum )
+		{
+			for ( int j = i; j < n - 1; j++ )
+				customPlayerState[clientNum].forcedSnapshotEnts[j] = customPlayerState[clientNum].forcedSnapshotEnts[j + 1];
+			customPlayerState[clientNum].numForcedSnapshotEnts--;
+			return;
+		}
+	}
+}
+
+int zk_GetForcedSnapshotCount(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return 0;
+	return customPlayerState[clientNum].numForcedSnapshotEnts;
+}
+
+int zk_GetForcedSnapshotEnt(int clientNum, int idx)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS || idx < 0 || idx >= customPlayerState[clientNum].numForcedSnapshotEnts )
+		return -1;
+	return customPlayerState[clientNum].forcedSnapshotEnts[idx];
+}
+
+
+int zk_GetPlayerObjective(int clientNum, int objNum, objective_t *dest)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS || objNum < 0 || objNum >= MAX_OBJECTIVES )
+		return 0;
+	if ( customPlayerState[clientNum].objectives[objNum].state == OBJST_EMPTY )
+		return 0;
+	*dest = customPlayerState[clientNum].objectives[objNum];
+	return 1;
+}
+
+
+void zk_ApplyEarthquakeClientMask(int *clientMask)
+{
+	for ( int i = 0; i < MAX_CLIENTS; i++ )
+	{
+		if ( customPlayerState[i].noEarthquakes )
+		{
+			if ( i > 31 )
+				clientMask[1] |= 1 << ( i - 32 );
+			else
+				clientMask[0] |= 1 << i;
+		}
+	}
+}
+
+
+extern void SV_QueueVoicePacket(int talkerNum, int clientNum, VoicePacket_t *voicePacket);
+
+void zk_RunTalkerIcons(void)
+{
+	VoicePacket_t fakeVoicePacket;
+	fakeVoicePacket.data[0] = 0xFF; // magic: empty/fake voice payload
+	fakeVoicePacket.dataSize = 1;
+
+	for ( int i = 0; i < MAX_CLIENTS; i++ )
+	{
+		if ( svs.clients[i].state < CS_CONNECTED )
+			continue;
+		for ( int j = 0; j < MAX_CLIENTS; j++ )
+		{
+			if ( !customPlayerState[i].talkerIcons[j] )
+				continue;
+			if ( svs.clients[j].state < CS_CONNECTED )
+				continue;
+			// do not fake the icon if that player is genuinely talking right now
+			int durationSinceLastTalk = level.time - level.clients[j].lastVoiceTime;
+			if ( durationSinceLastTalk >= 0 && g_voiceChatTalkingDuration->current.integer > durationSinceLastTalk )
+				continue;
+			fakeVoicePacket.talker = j;
+			SV_QueueVoicePacket(j, i, &fakeVoicePacket);
+		}
+	}
+}
+
+void zk_ClearTalkerIconsForClient(int dropped)
+{
+	if ( dropped < 0 || dropped >= MAX_CLIENTS )
+		return;
+	for ( int i = 0; i < MAX_CLIENTS; i++ )
+		customPlayerState[i].talkerIcons[dropped] = 0;
+}
+
+
+int zk_GetPlayerAnimationOverride(int clientNum, int animNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return 0;
+	// keep the engine's death animations (30..51) intact; only override others
+	if ( customPlayerState[clientNum].animation && ( animNum < 30 || animNum > 51 ) )
+		return customPlayerState[clientNum].animation;
+	return 0;
+}
+
+// ---- per-player/team collision (collisionTeam) ----
+extern unsigned int GScr_AllocString(const char *s);
+unsigned int zk_const_axis_allies = 0;
+unsigned int zk_const_bullet = 0;
+
+void zk_InitCollisionConsts(void)
+{
+	zk_const_axis_allies = GScr_AllocString("axis_allies");
+	zk_const_bullet = GScr_AllocString("bullet");
+}
+
+qboolean zk_SkipCollision(gentity_t *client1, gentity_t *client2)
+{
+	int id1 = client1 - g_entities;
+	int id2 = client2 - g_entities;
+
+	if ( id1 < MAX_CLIENTS && id2 < MAX_CLIENTS && client1->client && client2->client
+		&& client1->client->sess.connected == CON_CONNECTED
+		&& client2->client->sess.connected == CON_CONNECTED )
+	{
+		if ( customPlayerState[id1].collisionTeam == CUSTOM_TEAM_NONE || customPlayerState[id2].collisionTeam == CUSTOM_TEAM_NONE )
+			return qtrue;
+		if ( customPlayerState[id1].collisionTeam == CUSTOM_TEAM_AXIS && client2->client->sess.cs.team != TEAM_AXIS )
+			return qtrue;
+		if ( customPlayerState[id1].collisionTeam == CUSTOM_TEAM_ALLIES && client2->client->sess.cs.team != TEAM_ALLIES )
+			return qtrue;
+		if ( customPlayerState[id2].collisionTeam == CUSTOM_TEAM_AXIS && client1->client->sess.cs.team != TEAM_AXIS )
+			return qtrue;
+		if ( customPlayerState[id2].collisionTeam == CUSTOM_TEAM_ALLIES && client1->client->sess.cs.team != TEAM_ALLIES )
+			return qtrue;
+	}
+	return qfalse;
+}
+
+// ---- ballistics accessors (noBulletImpacts + fireRangeScale) ----
+float zk_GetFireRangeScale(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return 1.0f;
+	return customPlayerState[clientNum].fireRangeScale;
+}
+
+qboolean zk_GetNoBulletImpacts(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return qfalse;
+	return customPlayerState[clientNum].noBulletImpacts;
+}
+
+// ---- activate-on-use-button-release accessors (Player_UpdateActivate hook) ----
+qboolean zk_GetActivateOnUseButtonRelease(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS ) return qfalse;
+	return customPlayerState[clientNum].activateOnUseButtonRelease;
+}
+
+qboolean zk_GetHeldUseButton(int clientNum)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS ) return qfalse;
+	return customPlayerState[clientNum].heldUseButton;
+}
+
+void zk_SetHeldUseButton(int clientNum, qboolean value)
+{
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS ) return;
+	customPlayerState[clientNum].heldUseButton = value;
 }
 
 #endif

@@ -232,8 +232,31 @@ int custom_animation[MAX_CLIENTS] = {0};
 BG_PlayAnim
 ===============
 */
+#ifdef LIBCOD
+// zk_libcod: look up a runtime animation index by name (over globalScriptData->animations)
+int zk_GetAnimationId(const char *string)
+{
+	if ( !globalScriptData )
+		return -1;
+	int hash = BG_StringHashValue(string);
+	for ( int i = 0; i < globalScriptData->numAnimations; i++ )
+	{
+		animation_t *anim = &globalScriptData->animations[i];
+		if ( hash == anim->nameHash && !Q_stricmp(string, anim->name) )
+			return i;
+	}
+	return -1;
+}
+#endif
+
 int BG_PlayAnim( playerState_t *ps, int animNum, int bodyPart, int forceDuration, qboolean setTimer, qboolean isContinue, qboolean force )
 {
+#ifdef LIBCOD
+	// zk_libcod: setAnimation override (force the custom anim for non-death anims)
+	{ extern int zk_GetPlayerAnimationOverride(int clientNum, int animNum);
+	  int zk_ov = zk_GetPlayerAnimationOverride(ps->clientNum, animNum);
+	  if ( zk_ov > 0 ) { animNum = zk_ov; setTimer = qtrue; force = qtrue; } }
+#endif
 	int duration;
 	qboolean wasSet = qfalse;
 

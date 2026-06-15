@@ -496,8 +496,20 @@ void Bullet_Fire( gentity_t *attacker, float spread, weaponParms *wp, gentity_t 
 	}
 	else
 	{
+#ifdef LIBCOD
+		// zk_libcod: bullet drop - if active for this shooter, queue a simulated
+		// projectile and skip the normal hitscan path
+		extern qboolean zk_TryFireDroppingBullet(gentity_t *attacker, float spread, weaponParms *wp, gentity_t *weaponEnt, int gametime);
+		if ( !zk_TryFireDroppingBullet(attacker, spread, wp, weaponEnt, gametime) )
+		{
+			// zk_libcod: per-player fire range scale
+			{ extern float zk_GetFireRangeScale(int clientNum); Bullet_Endpos(spread, endpos, wp, 8192.0f * zk_GetFireRangeScale(attacker->s.number), -1); }
+			Bullet_Fire_Extended(weaponEnt, attacker, wp->muzzleTrace, endpos, 1.0, 0, wp, weaponEnt, gametime);
+		}
+#else
 		Bullet_Endpos(spread, endpos, wp, 8192, -1);
 		Bullet_Fire_Extended(weaponEnt, attacker, wp->muzzleTrace, endpos, 1.0, 0, wp, weaponEnt, gametime);
+#endif
 	}
 
 	G_AntiLag_RestoreClientPos(&antilagClients);
@@ -754,8 +766,16 @@ void Bullet_Fire_Extended( const gentity_t *source, gentity_t *attacker,
 	VectorMA(reflect, DotProduct(reflect, tr.normal) * -2.0, tr.normal, reflect);
 
 	// send bullet impact
+#ifdef LIBCOD
+	// zk_libcod: disableBulletImpacts() suppresses the impact effect for this player
+	extern qboolean zk_GetNoBulletImpacts(int clientNum);
+	if ( !( tr.surfaceFlags & SURF_SKY ) && !traceEnt->client && tr.fraction < 1.0
+		&& !( attacker->s.number < 64 && zk_GetNoBulletImpacts(attacker->s.number) ) )
+	{
+#else
 	if ( !( tr.surfaceFlags & SURF_SKY ) && !traceEnt->client && tr.fraction < 1.0 )
 	{
+#endif
 		// legacy?
 		if ( wp->weapDef->weaponClass == WEAPCLASS_SPREAD )
 		{

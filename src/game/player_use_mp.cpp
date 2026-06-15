@@ -27,6 +27,30 @@ void Player_UpdateActivate( gentity_t *ent )
 		return;
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: setActivateOnUseButtonRelease - fire activate on button release
+	extern qboolean zk_GetActivateOnUseButtonRelease(int clientNum);
+	extern qboolean zk_GetHeldUseButton(int clientNum);
+	extern void zk_SetHeldUseButton(int clientNum, qboolean value);
+	if ( zk_GetActivateOnUseButtonRelease(ent->s.number) )
+	{
+		int zkId = ent->s.number;
+		if ( ent->client->latched_buttons & ( BUTTON_USE | BUTTON_USERELOAD ) )
+			zk_SetHeldUseButton(zkId, qtrue);
+		else if ( !( ent->client->buttons & ( BUTTON_USE | BUTTON_USERELOAD ) ) && zk_GetHeldUseButton(zkId) )
+		{
+			useSucceeded = Player_ActivateCmd(ent);
+			zk_SetHeldUseButton(zkId, qfalse);
+		}
+
+		if ( ent->client->useHoldEntity != ENTITYNUM_NONE || useSucceeded )
+			Player_ActivateHoldCmd(ent);
+		else if ( ent->client->latched_buttons & BUTTON_USERELOAD )
+			ent->client->ps.pm_flags |= PMF_RELOAD;
+	}
+	else
+	{
+#endif
 	if ( ent->client->latched_buttons & ( BUTTON_USE | BUTTON_USERELOAD ) )
 	{
 		useSucceeded = Player_ActivateCmd(ent);
@@ -43,6 +67,9 @@ void Player_UpdateActivate( gentity_t *ent )
 	{
 		ent->client->ps.pm_flags |= PMF_RELOAD;
 	}
+#ifdef LIBCOD
+	}
+#endif
 }
 
 /*

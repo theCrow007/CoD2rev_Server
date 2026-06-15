@@ -8,6 +8,9 @@ dvar_t *sv_master[MAX_MASTER_SERVERS];
 dvar_t *fs_library;
 dvar_t *g_playerCollision;
 dvar_t *g_playerEject;
+dvar_t *g_corpseHit;
+dvar_t *g_bulletDrop;
+dvar_t *g_bulletDropMaxTime;
 dvar_t *sv_allowRcon;
 dvar_t *sv_downloadMessage;
 dvar_t *sv_fastDownload;
@@ -19,6 +22,10 @@ dvar_t *g_fixedWeaponSpreads;
 dvar_t *g_dropGrenadeOnDeath;
 
 int codecallback_playercommand = 0;
+qboolean playerCommand = qfalse;
+int codecallback_remotecommand = 0;
+typedef struct { netadr_t from; msg_t *msg; } zk_remoteCommand_t;
+static zk_remoteCommand_t zk_remoteCommand = { {}, NULL };
 int codecallback_userinfochanged = 0;
 int codecallback_fire_grenade = 0;
 int codecallback_vid_restart = 0;
@@ -37,6 +44,9 @@ void RegisterLibcodDvars()
 
 	g_playerCollision = Dvar_RegisterBool("g_playerCollision", true, DVAR_CHANGEABLE_RESET);
 	g_playerEject = Dvar_RegisterBool("g_playerEject", true, DVAR_CHANGEABLE_RESET);
+	g_corpseHit = Dvar_RegisterBool("g_corpseHit", true, DVAR_CHANGEABLE_RESET);
+	g_bulletDrop = Dvar_RegisterBool("g_bulletDrop", false, DVAR_CHANGEABLE_RESET);
+	g_bulletDropMaxTime = Dvar_RegisterInt("g_bulletDropMaxTime", 10000, 0, 600000, DVAR_CHANGEABLE_RESET);
 
 	sv_allowRcon = Dvar_RegisterBool("sv_allowRcon", true, DVAR_CHANGEABLE_RESET);
 	sv_downloadMessage = Dvar_RegisterString("sv_downloadMessage", "", DVAR_CHANGEABLE_RESET);
@@ -59,6 +69,7 @@ void RegisterLibcodDvars()
 void InitLibcodCallbacks()
 {
 	codecallback_playercommand = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_PlayerCommand", 0);
+	codecallback_remotecommand = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_RemoteCommand", 0);
 	codecallback_userinfochanged = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_UserInfoChanged", 0);
 	codecallback_fire_grenade = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_FireGrenade", 0);
 	codecallback_vid_restart = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_VidRestart", 0);
@@ -544,8 +555,81 @@ void hook_ClientCommand(int clientNum)
 		}
 	}
 
+	playerCommand = qtrue;
 	short ret = Scr_ExecEntThread(&g_entities[clientNum], codecallback_playercommand, 1);
 	Scr_FreeThread(ret);
+	playerCommand = qfalse;
+}
+
+
+// ---- rcon command gate (CodeCallback_RemoteCommand / processRemoteCommand) ----
+#ifndef SV_OUTPUTBUF_LENGTH
+#define SV_OUTPUTBUF_LENGTH ( 256 * MAX_CLIENTS - 16 )
+#endif
+
+// Runs the rcon callback. Returns qtrue if it consumed the command (caller returns).
+qboolean zk_RemoteCommandGate(netadr_t from, msg_t *msg)
+{
+	if ( !codecallback_remotecommand || !Scr_IsSystemActive() )
+		return qfalse;
+
+	memcpy(&zk_remoteCommand.from, &from, sizeof(netadr_t));
+	zk_remoteCommand.msg = msg;
+
+	stackPushArray();
+	int args = SV_Cmd_Argc();
+	for ( int i = 2; i < args; i++ )
+	{
+		char tmp[COD2_MAX_STRINGLENGTH];
+		SV_Cmd_ArgvBuffer(i, tmp, sizeof(tmp));
+		stackPushString(tmp);
+		stackPushArrayLast();
+	}
+	stackPushString(NET_AdrToString(from));
+
+	short ret = Scr_ExecThread(codecallback_remotecommand, 2);
+	Scr_FreeThread(ret);
+
+	zk_remoteCommand.msg = NULL;
+	return qtrue;
+}
+
+qboolean zk_RemoteCommandActive(void)
+{
+	return zk_remoteCommand.msg != NULL ? qtrue : qfalse;
+}
+
+// Executes the gated rcon command (called synchronously from processRemoteCommand,
+// while the original command args are still current). Mirrors SVC_RemoteCommand's
+// execution path with output redirected to the rcon sender.
+extern void SV_FlushRedirect(char *outputbuf);
+qboolean zk_RemoteCommandExecute(void)
+{
+	char sv_outputbuf[SV_OUTPUTBUF_LENGTH];
+	char remaining[1024];
+	int len = 0;
+	int maxlen = 1024;
+
+	if ( !zk_remoteCommand.msg )
+		return qfalse;
+
+	svs.redirectAddress = zk_remoteCommand.from;
+	Com_BeginRedirect(sv_outputbuf, SV_OUTPUTBUF_LENGTH, SV_FlushRedirect);
+
+	for ( int i = 2; i < SV_Cmd_Argc(); i++ )
+	{
+		len = Com_AddToString(SV_Cmd_Argv(i), remaining, len, maxlen, 1);
+		len = Com_AddToString(" ", remaining, len, maxlen, 0);
+	}
+	if ( len < maxlen )
+	{
+		remaining[len] = 0;
+		SV_Cmd_ExecuteString(remaining);
+	}
+
+	Com_EndRedirect();
+	zk_remoteCommand.msg = NULL;
+	return qtrue;
 }
 
 void hook_ClientUserinfoChanged(int clientNum)

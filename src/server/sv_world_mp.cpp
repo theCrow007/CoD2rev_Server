@@ -111,6 +111,15 @@ void SV_ClipMoveToEntity( moveclip_t *clip, svEntity_t *entity, trace_t *trace )
 #endif
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: per-player/team collision (collisionTeam)
+	{
+		extern qboolean zk_SkipCollision(gentity_t *a, gentity_t *b);
+		if ( clip->passEntityNum != ENTITYNUM_NONE && zk_SkipCollision(touch, &g_entities[clip->passEntityNum]) )
+			return;
+	}
+#endif
+
 	VectorAdd(touch->r.absmin, clip->mins, mins);
 	VectorAdd(touch->r.absmax, clip->maxs, maxs);
 

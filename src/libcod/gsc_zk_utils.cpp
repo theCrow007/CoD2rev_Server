@@ -372,4 +372,148 @@ void gsc_zk_utils_findconfigstringindexoriginal()
 	stackPushInt(G_FindConfigstringIndex(name, min, max, create, "G_FindConfigstringIndex() from GSC"));
 }
 
+// ==== zk networking (sendCommandToClient / sendPacket) ====
+
+void gsc_zk_utils_sendcommandtoclient()
+{
+	int clientNum;
+	char *message;
+
+	if ( !stackGetParams("is", &clientNum, &message) )
+	{
+		stackError("gsc_zk_utils_sendcommandtoclient() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	SV_GameSendServerCommand(clientNum, SV_CMD_CAN_IGNORE, message);
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_utils_sendpacket()
+{
+	char *address;
+	char *msg;
+
+	if ( !stackGetParams("ss", &address, &msg) )
+	{
+		stackError("gsc_zk_utils_sendpacket() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	netadr_t to;
+
+	if ( NET_StringToAdr(address, &to) )
+	{
+		if ( NET_OutOfBandPrint(NS_SERVER, to, msg) )
+		{
+			stackPushBool(qtrue);
+		}
+		else
+		{
+			stackError("gsc_zk_utils_sendpacket() failed to send packet");
+			stackPushUndefined();
+			return;
+		}
+	}
+	else
+	{
+		stackError("gsc_zk_utils_sendpacket() invalid address");
+		stackPushUndefined();
+		return;
+	}
+}
+
+#ifndef MAX_STRINGLENGTH
+#define MAX_STRINGLENGTH 1024
+#endif
+
+// ---- string helpers ----
+
+void gsc_zk_utils_makestring()
+{
+	char *str;
+
+	if ( !stackGetParams("l", &str) )
+	{
+		stackError("gsc_zk_utils_makestring() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushString(str);
+
+	VariableValue *var;
+	int param = 0;
+
+	var = &scrVmPub.top[-param];
+	var->type = VAR_STRING;
+}
+
+void gsc_zk_utils_makeclientlocalizedstring()
+{
+	char *input;
+
+	if ( !stackGetParams("s", &input) )
+	{
+		stackError("gsc_zk_utils_makeclientlocalizedstring() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( !strlen(input) || strlen(input) > MAX_STRINGLENGTH - 3 )
+	{
+		stackError("gsc_zk_utils_makeclientlocalizedstring() invalid string length");
+		stackPushUndefined();
+		return;
+	}
+
+	char output[MAX_STRINGLENGTH];
+	Com_sprintf(output, MAX_STRINGLENGTH,"\x14%s\x15", input);
+
+	stackPushString(output);
+}
+
+// ---- console prefix (server console say/tell sender name) ----
+#ifndef MAX_CONSOLE_PREFIX_LENGTH
+#define MAX_CONSOLE_PREFIX_LENGTH 64
+#endif
+
+static char zk_consolePrefix[MAX_CONSOLE_PREFIX_LENGTH] = "console: ";
+
+const char *zk_GetConsolePrefix(void)
+{
+	return zk_consolePrefix;
+}
+
+void gsc_zk_utils_setconsoleprefix()
+{
+	char *str;
+
+	if ( ! stackGetParams("s", &str))
+	{
+		stackError("gsc_zk_utils_setconsoleprefix() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	Com_sprintf(zk_consolePrefix, MAX_CONSOLE_PREFIX_LENGTH, "%s", str);
+	stackPushString(zk_consolePrefix);
+}
+
+// ---- command gate: processRemoteCommand ----
+void gsc_zk_utils_processremotecommand()
+{
+	extern qboolean zk_RemoteCommandActive(void);
+	extern qboolean zk_RemoteCommandExecute(void);
+
+	if ( !zk_RemoteCommandActive() )
+	{
+		stackError("gsc_zk_utils_processremotecommand() must be called from CodeCallback_RemoteCommand, without delay, and at most once per rcon command");
+		return;
+	}
+	zk_RemoteCommandExecute();
+}
+
 #endif

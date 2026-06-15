@@ -1,6 +1,10 @@
 #ifndef _GSC_ZK_CUSTOM_STATE_HPP_
 #define _GSC_ZK_CUSTOM_STATE_HPP_
 
+#ifndef ZK_MAX_SNAPSHOT_ENTITIES
+#define ZK_MAX_SNAPSHOT_ENTITIES 1024
+#endif
+
 /*
  * Custom per-player / per-entity state infrastructure ported from
  * ibuddieat/zk_libcod (declarations.hpp). This is the foundation for the
@@ -50,6 +54,30 @@ typedef enum
 #define ZK_KEY_MASK_FRAG        0x10000
 #define ZK_KEY_MASK_SMOKE       0x20000
 
+#define MAX_DROPPING_BULLETS 20 // Per player
+
+typedef struct
+{
+	const gentity_t *attacker;
+	vec3_t direction;
+	float distance;
+	float dmgScale;
+	float drag;
+	gentity_t *inflictor;
+	qboolean inUse;
+	gentity_t *lastHitEnt;
+	vec3_t position;
+	int startTime;
+	int timeOffset;
+	float velocity;
+	gentity_t *visualBullet;
+	int visualBulletModelIndex;
+	int visualTime;
+	const gentity_t *weaponEnt;
+	weaponParms wp;
+	float zVelocity;
+} droppingBullet_t;
+
 typedef struct customPlayerState_s
 {
 	// --- overrides ---
@@ -69,6 +97,9 @@ typedef struct customPlayerState_s
 	int jumpHeight;
 	qboolean overrideJumpSlowdown;
 	int jumpSlowdown;
+	int numForcedSnapshotEnts;
+	int forcedSnapshotEnts[ZK_MAX_SNAPSHOT_ENTITIES];
+	objective_t objectives[MAX_OBJECTIVES];
 
 	// --- melee / fire / spread scaling ---
 	float meleeHeightScale;
@@ -83,6 +114,8 @@ typedef struct customPlayerState_s
 	qboolean noPickup;
 	qboolean noPickupHintString;
 	qboolean noEarthquakes;
+	byte talkerIcons[64];
+	int animation;
 	qboolean noBulletImpacts;
 	qboolean silent;
 	customTeam_t collisionTeam;
@@ -109,6 +142,15 @@ typedef struct customPlayerState_s
 	int botWeapon;
 	char botForwardMove;
 	char botRightMove;
+	// --- bullet drop / ballistics ---
+	int droppingBulletsCount;
+	droppingBullet_t droppingBullets[MAX_DROPPING_BULLETS];
+	qboolean droppingBulletsEnabled;
+	float droppingBulletDrag;
+	float droppingBulletVelocity;
+	qboolean droppingBulletVisuals;
+	int droppingBulletVisualModelIndex;
+	int droppingBulletVisualTime;
 } customPlayerState_t;
 
 typedef struct customEntityState_s
@@ -150,10 +192,28 @@ qboolean zk_IsNotAllowingSpectators(int clientNum);
 qboolean zk_GetStepSizeOverride(int clientNum, qboolean prone, float *out);
 int zk_GetJumpHeightOverride(int clientNum, float *out);
 int zk_GetJumpSlowdownOverride(int clientNum, int *out);
+void zk_AddEntToPlayerSnapshots(int clientNum, int entNum);
+void zk_RemoveEntFromPlayerSnapshots(int clientNum, int entNum);
+int zk_GetForcedSnapshotCount(int clientNum);
+int zk_GetForcedSnapshotEnt(int clientNum, int idx);
+int zk_GetPlayerObjective(int clientNum, int objNum, objective_t *dest);
+void zk_ApplyEarthquakeClientMask(int *clientMask);
+void zk_RunTalkerIcons(void);
+void zk_ClearTalkerIconsForClient(int dropped);
+int zk_GetPlayerAnimationOverride(int clientNum, int animNum);
 qboolean zk_GetPlayerContentsOverride(int clientNum, int *contents);
 float zk_GetWeaponSpreadScale(int clientNum);
 float zk_GetTurretSpreadScale(int clientNum);
 void zk_ApplyMeleeScales(int clientNum, float *range, float *width, float *height);
 void zk_ApplyPlayerSpeedGravity(int clientNum, int *speed, int *gravity);
 
+extern unsigned int zk_const_axis_allies;
+extern unsigned int zk_const_bullet;
+void zk_InitCollisionConsts(void);
+qboolean zk_SkipCollision(gentity_t *client1, gentity_t *client2);
+float zk_GetFireRangeScale(int clientNum);
+qboolean zk_GetNoBulletImpacts(int clientNum);
+qboolean zk_GetActivateOnUseButtonRelease(int clientNum);
+qboolean zk_GetHeldUseButton(int clientNum);
+void zk_SetHeldUseButton(int clientNum, qboolean value);
 #endif

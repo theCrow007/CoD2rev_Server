@@ -2166,4 +2166,1014 @@ void gsc_zk_player_setjumpslowdownenable(scr_entref_t ref)
 	stackPushBool(qtrue);
 }
 
+// ---- per-player fog ----
+
+static void zk_SetFogForPlayer(const char *cmd, float start, float density, float heightDensity, float r, float g, float b, float time, int clientNum)
+{
+	if ( start < 0.0 )
+		Scr_Error(va("%s: near distance must be >= 0", cmd));
+
+	if ( start >= density )
+		Scr_Error(va("%s: near distance must be less than far distance", cmd));
+
+	if ( r < 0.0 || r > 1.0 || g < 0.0 || g > 1.0 || b < 0.0 || b > 1.0 )
+		Scr_Error(va("%s: red/green/blue color components must be in the range [0, 1]", cmd));
+
+	if ( time < 0.0 )
+		Scr_Error(va("%s: transition time must be >= 0 seconds", cmd));
+
+	client_t *client = &svs.clients[clientNum];
+	char configstring[MAX_STRINGLENGTH];
+
+	Com_sprintf(configstring, MAX_STRINGLENGTH, "d 12 %s", va("%g %g %g %g %g %g %.0f", start, density, heightDensity, r, g, b, (float)(time * 1000.0)));
+	SV_SendServerCommand(client, SV_CMD_RELIABLE, "%s", configstring);
+}
+
+void gsc_zk_player_setcullfogforplayer(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setcullfogforplayer() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( Scr_GetNumParam() != 6 )
+		Scr_Error("USAGE: setCullFogForPlayer(near distance, far distance, red, green, blue, transition time);\n");
+
+	float nearDistance = Scr_GetFloat(0);
+	float farDistance = Scr_GetFloat(1);
+	float r = Scr_GetFloat(2);
+	float g = Scr_GetFloat(3);
+	float b = Scr_GetFloat(4);
+	float transitionTime = Scr_GetFloat(5);
+
+	zk_SetFogForPlayer("setCullFogForPlayer", nearDistance, farDistance, 1.0, r, g, b, transitionTime, id);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setexpfogforplayer(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setexpfogforplayer() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( Scr_GetNumParam() != 5 )
+		Scr_Error("USAGE: setExpFogForPlayer(density, red, green, blue, transition time);\nDensity must be greater than 0 and less than 1, and typically less than .001. For example, .0002 means the fog gets .02%% more dense for every 1 unit of distance (about 1%% thicker every 50 units of distance)\n");
+
+	float density = Scr_GetFloat(0);
+	float r = Scr_GetFloat(1);
+	float g = Scr_GetFloat(2);
+	float b = Scr_GetFloat(3);
+	float transitionTime = Scr_GetFloat(4);
+
+	if ( density <= 0.0 || 1.0 <= density )
+		Scr_Error("setExpFogForPlayer: density must be greater than 0 and less than 1");
+
+	zk_SetFogForPlayer("setExpFogForPlayer", 0.0, 1.0, density, r, g, b, transitionTime, id);
+
+	stackPushBool(qtrue);
+}
+
+// ---- snapshot forcing ----
+
+void gsc_zk_player_addenttosnapshots(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_addenttosnapshots() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *ent = Scr_GetEntity(0);
+	zk_AddEntToPlayerSnapshots(id, ent->s.number);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_removeentfromsnapshots(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_removeentfromsnapshots() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *ent = Scr_GetEntity(0);
+	zk_RemoveEntFromPlayerSnapshots(id, ent->s.number);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_getnumberofentsinsnapshot(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getnumberofentsinsnapshot() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	stackPushInt(zk_GetForcedSnapshotCount(id));
+}
+
+// ---- per-player objectives ----
+
+// engine helper (defined in g_main_mp.cpp; not in a shared header)
+extern void SetObjectiveIcon(objective_t *obj, int paramNum);
+
+
+void gsc_zk_player_objective_player_add(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_objective_player_add() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int args;
+	int objective_number;
+	objective_t *obj;
+	unsigned short index;
+	objectiveState_t state;
+
+	args = Scr_GetNumParam();
+	if ( args < 2 )
+	{
+		Scr_Error("objective_add needs at least the first two parameters out of its parameter list of: index state [string] [position]\n");
+	}
+
+	objective_number = Scr_GetInt(0);
+	if ( ( objective_number < 0 ) || ( 0xF < objective_number ) )
+	{
+		Scr_ParamError(0, va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", objective_number, 15));
+	}
+
+	obj = &customPlayerState[id].objectives[objective_number];
+
+	if ( obj->entNum != ENTITYNUM_NONE )
+	{
+		if ( g_entities[obj->entNum].r.inuse != 0 )
+		{
+			g_entities[obj->entNum].r.svFlags = g_entities[obj->entNum].r.svFlags & 0xEF;
+		}
+		obj->entNum = ENTITYNUM_NONE;
+	}
+
+	index = Scr_GetConstString(1);
+	if ( index == scr_const.empty )
+	{
+		state = OBJST_EMPTY;
+	}
+	else if ( index == scr_const.invisible )
+	{
+		state = OBJST_INVISIBLE;
+	}
+	else 
+	{
+		if ( index != scr_const.current )
+		{
+			state = OBJST_EMPTY;
+			Scr_ParamError(1, va("Illegal objective state \"%s\". Valid states are \"empty\", \"invisible\", \"current\"\n", SL_ConvertToString((uint)index)));
+		}
+		state = OBJST_CURRENT;
+	}
+	obj->state = state;
+
+	if ( 2 < args )
+	{
+		Scr_GetVector(2, obj->origin);
+		obj->origin[0] = (float)(int)obj->origin[0];
+		obj->origin[1] = (float)(int)obj->origin[1];
+		obj->origin[2] = (float)(int)obj->origin[2];
+		obj->entNum = ENTITYNUM_NONE;
+		if ( 3 < args )
+		{
+			SetObjectiveIcon(obj, 3);
+		}
+	}
+	obj->teamNum = 0;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_objective_player_delete(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_objective_player_delete() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int objective_number;
+	objective_t *obj;
+
+	objective_number = Scr_GetInt(0);
+	if ( ( objective_number < 0 ) || ( 0xf < objective_number ) )
+	{
+		Scr_ParamError(0, va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", objective_number, 15));
+	}
+
+	obj = &customPlayerState[id].objectives[objective_number];
+
+	if ( obj->entNum != ENTITYNUM_NONE )
+	{
+		if ( g_entities[obj->entNum].r.inuse != 0 )
+		{
+			g_entities[obj->entNum].r.svFlags = g_entities[obj->entNum].r.svFlags & 0xEF;
+		}
+		obj->entNum = ENTITYNUM_NONE;
+	}
+
+	obj->state = OBJST_EMPTY;
+	obj->origin[0] = 0.0;
+	obj->origin[1] = 0.0;
+	obj->origin[2] = 0.0;
+	obj->entNum = ENTITYNUM_NONE;
+	obj->teamNum = 0;
+	obj->icon = 0;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_objective_player_icon(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_objective_player_icon() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int objective_number = Scr_GetInt(0);
+	if ( ( objective_number < 0 ) || ( 0xf < objective_number ) )
+	{
+		Scr_ParamError(0, va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", objective_number, 15));
+	}
+
+  	SetObjectiveIcon(&customPlayerState[id].objectives[objective_number], 1);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_objective_player_position(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_objective_player_position() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int objective_number;
+	objective_t *obj;
+
+	objective_number = Scr_GetInt(0);
+	if ( ( objective_number < 0 ) || ( 0xf < objective_number ) )
+	{
+		Scr_ParamError(0, va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", objective_number, 15));
+	}
+
+	obj = &customPlayerState[id].objectives[objective_number];
+
+	if ( obj->entNum != ENTITYNUM_NONE )
+	{
+		if ( g_entities[obj->entNum].r.inuse != 0 )
+		{
+			g_entities[obj->entNum].r.svFlags = g_entities[obj->entNum].r.svFlags & 0xEF;
+		}
+		obj->entNum = ENTITYNUM_NONE;
+	}
+
+	Scr_GetVector(1, obj->origin);
+	obj->origin[0] = (float)(int)obj->origin[0];
+	obj->origin[1] = (float)(int)obj->origin[1];
+	obj->origin[2] = (float)(int)obj->origin[2];
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_objective_player_state(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_objective_player_state() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	int objective_number;
+	objective_t *obj;
+	unsigned short index;
+	objectiveState_t state;
+
+	objective_number = Scr_GetInt(0);
+	if ( ( objective_number < 0 ) || ( 0xf < objective_number ) )
+	{
+		Scr_ParamError(0, va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", objective_number, 15));
+	}
+
+	obj = &customPlayerState[id].objectives[objective_number];
+
+	index = Scr_GetConstString(1);
+	if ( index == scr_const.empty )
+	{
+		state = OBJST_EMPTY;
+	}
+	else if ( index == scr_const.invisible )
+	{
+		state = OBJST_INVISIBLE;
+	}
+	else 
+	{
+		if ( index != scr_const.current )
+		{
+			state = OBJST_EMPTY;
+			Scr_ParamError(1, va("Illegal objective state \"%s\". Valid states are \"empty\", \"invisible\", \"current\"\n", SL_ConvertToString((uint)state)));
+		}
+		state = OBJST_CURRENT;
+	}
+	obj->state = state;
+
+	if ( ( state == OBJST_EMPTY ) || ( state == OBJST_INVISIBLE ) )
+	{
+		if ( obj->entNum != ENTITYNUM_NONE )
+		{
+			if ( g_entities[obj->entNum].r.inuse != 0 )
+			{
+				g_entities[obj->entNum].r.svFlags = g_entities[obj->entNum].r.svFlags & 0xEF;
+			}
+			obj->entNum = ENTITYNUM_NONE;
+		}
+	}
+
+	stackPushBool(qtrue);
+}
+
+// ---- per-player earthquakes ----
+
+void gsc_zk_player_enableearthquakes(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_enableearthquakes() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	qboolean old_setting = !customPlayerState[id].noEarthquakes;
+	customPlayerState[id].noEarthquakes = qfalse;
+
+	stackPushInt(old_setting);
+}
+
+void gsc_zk_player_disableearthquakes(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_disableearthquakes() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	qboolean old_setting = !customPlayerState[id].noEarthquakes;
+	customPlayerState[id].noEarthquakes = qtrue;
+
+	stackPushInt(old_setting);
+}
+
+// ---- talker icons ----
+
+void gsc_zk_player_enabletalkericon(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_enabletalkericon() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *talker = Scr_GetEntity(0);
+	int talkerNum = talker->s.number;
+	if ( talkerNum >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_disabletalkericon() specified talker is not a player");
+		stackPushUndefined();
+		return;
+	}
+
+	customPlayerState[id].talkerIcons[talkerNum] = 1;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_disabletalkericon(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_disabletalkericon() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *talker = Scr_GetEntity(0);
+	int talkerNum = talker->s.number;
+	if ( talkerNum >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_disabletalkericon() specified talker is not a player");
+		stackPushUndefined();
+		return;
+	}
+
+	customPlayerState[id].talkerIcons[talkerNum] = 0;
+
+	stackPushBool(qtrue);
+}
+
+// ---- animation ----
+
+// engine helper (defined in bg_animation_mp.cpp where globalScriptData is visible)
+extern int zk_GetAnimationId(const char *string);
+
+void gsc_zk_player_setanimation(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	char *animation;
+	int animationId;
+
+	if ( !stackGetParams("s", &animation) )
+	{
+		stackError("gsc_zk_player_setanimation() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( !strncmp(animation, "none", 4) )
+		animationId = 0;
+	else
+		animationId = zk_GetAnimationId(animation);
+
+	if ( animationId == -1 )
+	{
+		stackError("gsc_zk_player_setanimation() invalid animation string");
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *entity = &g_entities[id];
+	if ( entity->s.eType == ET_PLAYER_CORPSE )
+	{
+		entity->s.legsAnim = animationId;
+		stackPushBool(qtrue);
+		return;
+	}
+
+	if ( entity->client == NULL )
+	{
+		stackError("gsc_zk_player_setanimation() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	customPlayerState[id].animation = animationId;
+
+	stackPushBool(qtrue);
+}
+
+// ==== zk client command / networking ====
+
+extern void ClientUserinfoChanged(int clientNum);
+
+void gsc_zk_player_executeclientcommand(scr_entref_t ref)
+{
+	char c;
+	char szOutString[1024];
+	char szString[1024];
+	char *pCh;
+	char *pszText;
+	int i;
+
+	if ( ref.classnum )
+	{
+		Scr_ObjectError("not an entity");
+	}
+	else if ( !g_entities[ref.entnum].client )
+	{
+		Scr_ObjectError(va("entity %i is not a player", ref.entnum));
+	}
+
+	if ( Scr_GetType(0) == VAR_ISTRING )
+	{
+		Scr_ConstructMessageString(0, Scr_GetNumParam() - 1, "Client Dvar Value", szString, MAX_STRINGLENGTH);
+		pszText = szString;
+	}
+	else
+	{
+		pszText = (char *)Scr_GetString(0);
+	}
+
+	pCh = szOutString;
+	memset(szOutString, 0, sizeof(szOutString));
+	i = 0;
+
+	while ( i <= 0x1FFF && pszText[i] )
+	{
+		c = I_CleanChar(pszText[i]);
+		*pCh = c;
+		if ( *pCh == 34 )
+			*pCh = 39;
+		++i;
+		++pCh;
+	}
+
+	SV_GameSendServerCommand(ref.entnum, SV_CMD_RELIABLE, va("v activeAction \"%s\"", szOutString));
+	SV_GameSendServerCommand(ref.entnum, SV_CMD_RELIABLE, "B");
+}
+
+void gsc_zk_player_processclientuserinfochange(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_processclientuserinfochange() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	
+	ClientUserinfoChanged(id);
+	
+	stackPushBool(qtrue);
+}
+
+// ---- use / look-at stragglers ----
+
+// engine helper + entity lookup by number (rev's GetEntity takes scr_entref_t)
+extern void LookAtKiller(gentity_t *self, gentity_t *inflictor, gentity_t *attacker);
+extern qboolean G_IsTurretUsable(gentity_t *turret, gentity_t *player);
+extern void Player_UseEntity(gentity_t *player, gentity_t *useEnt);
+static gentity_t *zk_entFromNum(int n)
+{
+	if ( n < 0 || n >= MAX_GENTITIES )
+		return NULL;
+	return &g_entities[n];
+}
+
+void gsc_zk_player_lookatkiller(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int inflictor, attacker;
+
+	if ( !stackGetParams("ii", &inflictor, &attacker) )
+	{
+		stackError("gsc_zk_player_lookatkiller() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *self_entity = zk_entFromNum(id);
+	if ( !self_entity )
+	{
+		stackError("gsc_zk_player_lookatkiller() self_entity state is invalid");
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *inflictor_entity = zk_entFromNum(inflictor);
+	if ( !inflictor_entity )
+	{
+		stackError("gsc_zk_player_lookatkiller() inflictor_entity state is invalid");
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *attacker_entity = zk_entFromNum(attacker);
+	if ( !attacker_entity )
+	{
+		stackError("gsc_zk_player_lookatkiller() attacker_entity state is invalid");
+		stackPushUndefined();
+		return;
+	}
+
+	LookAtKiller(self_entity, inflictor_entity, attacker_entity);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_useentity(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_useentity() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *playerEnt = &g_entities[id];
+	gentity_t *useEnt = Scr_GetEntity(0);
+
+	Player_UseEntity(playerEnt, useEnt);
+
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_useturret(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_useturret() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *playerEnt = &g_entities[id];
+	gentity_t *useEnt = Scr_GetEntity(0);
+
+	if ( useEnt->s.eType != ET_TURRET )
+	{
+		stackError("gsc_zk_player_useturret() entity %i is not a turret", useEnt - g_entities);
+		stackPushUndefined();
+		return;
+	}
+
+	if ( G_IsTurretUsable(useEnt, playerEnt) )
+	{
+		Player_UseEntity(playerEnt, useEnt);
+		stackPushBool(qtrue);
+	}
+	else
+	{
+		stackPushBool(qfalse);
+	}
+}
+
+void gsc_zk_player_isusetouching(scr_entref_t ref)
+{
+	int id = ref.entnum;
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_isusetouching() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *ent = &g_entities[id];
+	gclient_t *client = ent->client;
+
+	stackPushBool(client->ps.pm_type != PM_INTERMISSION && client->ps.pm_type != PM_SPECTATOR && client->ps.cursorHintEntIndex != ENTITYNUM_NONE);
+}
+
+// ---- collision team ----
+extern unsigned int zk_const_axis_allies;
+
+void gsc_zk_player_getcollisionteam(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getcollisionteam() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	if ( customPlayerState[id].collisionTeam == CUSTOM_TEAM_AXIS_ALLIES )
+		Scr_AddConstString(zk_const_axis_allies);
+	else if ( customPlayerState[id].collisionTeam == CUSTOM_TEAM_AXIS )
+		Scr_AddConstString(scr_const.axis);
+	else if ( customPlayerState[id].collisionTeam == CUSTOM_TEAM_ALLIES )
+		Scr_AddConstString(scr_const.allies);
+	else
+		Scr_AddConstString(scr_const.none);
+}
+
+void gsc_zk_player_setcollisionteam(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setcollisionteam() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	unsigned int team = Scr_GetConstString(0);
+	if ( team == scr_const.none )
+		customPlayerState[id].collisionTeam = CUSTOM_TEAM_NONE;
+	else if ( team == scr_const.axis )
+		customPlayerState[id].collisionTeam = CUSTOM_TEAM_AXIS;
+	else if ( team == scr_const.allies )
+		customPlayerState[id].collisionTeam = CUSTOM_TEAM_ALLIES;
+	else if ( team == zk_const_axis_allies )
+		customPlayerState[id].collisionTeam = CUSTOM_TEAM_AXIS_ALLIES;
+	else
+		Scr_ParamError(0, "collision team must be \"axis\", \"allies\", \"none\", or \"axis_allies\"");
+	stackPushBool(qtrue);
+}
+
+// ---- ballistics: bullet impacts + fire range scale ----
+void gsc_zk_player_enablebulletimpacts(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_enablebulletimpacts() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	customPlayerState[id].noBulletImpacts = qfalse;
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_disablebulletimpacts(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_disablebulletimpacts() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	customPlayerState[id].noBulletImpacts = qtrue;
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setfirerangescale(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	float old_scale, new_scale;
+	if ( !stackGetParams("f", &new_scale) )
+	{
+		stackError("gsc_zk_player_setfirerangescale() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setfirerangescale() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	old_scale = customPlayerState[id].fireRangeScale;
+	if ( new_scale < 0 )
+		new_scale = 0.0;
+	customPlayerState[id].fireRangeScale = new_scale;
+	stackPushFloat(old_scale);
+}
+
+// ---- bullet drop / ballistics (state setters; sim + hooks are separate) ----
+void gsc_zk_player_enablebulletdrop(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS ) { stackError("gsc_zk_player_enablebulletdrop() entity %i is not a player", id); stackPushUndefined(); return; }
+	customPlayerState[id].droppingBulletsEnabled = qtrue;
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_disablebulletdrop(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS ) { stackError("gsc_zk_player_disablebulletdrop() entity %i is not a player", id); stackPushUndefined(); return; }
+	customPlayerState[id].droppingBulletsEnabled = qfalse;
+	stackPushBool(qtrue);
+}
+
+void gsc_zk_player_setbulletdrag(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	float old_drag, new_drag;
+	if ( !stackGetParams("f", &new_drag) ) { stackError("gsc_zk_player_setbulletdrag() argument is undefined or has a wrong type"); stackPushUndefined(); return; }
+	if ( id >= MAX_CLIENTS ) { stackError("gsc_zk_player_setbulletdrag() entity %i is not a player", id); stackPushUndefined(); return; }
+	old_drag = customPlayerState[id].droppingBulletDrag;
+	if ( new_drag < 0 ) new_drag = 0.0; else if ( new_drag > 1.0 ) new_drag = 1.0;
+	customPlayerState[id].droppingBulletDrag = new_drag;
+	stackPushFloat(old_drag);
+}
+
+void gsc_zk_player_setbulletvelocity(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	float old_velocity, new_velocity;
+	if ( !stackGetParams("f", &new_velocity) ) { stackError("gsc_zk_player_setbulletvelocity() argument is undefined or has a wrong type"); stackPushUndefined(); return; }
+	if ( id >= MAX_CLIENTS ) { stackError("gsc_zk_player_setbulletvelocity() entity %i is not a player", id); stackPushUndefined(); return; }
+	old_velocity = customPlayerState[id].droppingBulletVelocity;
+	if ( new_velocity < 0 ) new_velocity = 0.0;
+	customPlayerState[id].droppingBulletVelocity = new_velocity;
+	stackPushFloat(old_velocity);
+}
+
+void gsc_zk_player_setbulletmodel(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	const char *model;
+	if ( id >= MAX_CLIENTS ) { stackError("gsc_zk_player_setbulletmodel() entity %i is not a player", id); stackPushUndefined(); return; }
+	if ( Scr_GetNumParam() > 0 )
+	{
+		if ( Scr_GetType(0) == VAR_UNDEFINED )
+			customPlayerState[id].droppingBulletVisuals = qfalse;
+		else if ( Scr_GetType(0) == VAR_STRING )
+		{
+			model = Scr_GetString(0);
+			customPlayerState[id].droppingBulletVisualModelIndex = G_ModelIndex((char *)model);
+			customPlayerState[id].droppingBulletVisuals = qtrue;
+		}
+		else { stackError("gsc_zk_player_setbulletmodel() first argument has a wrong type"); stackPushUndefined(); return; }
+
+		if ( Scr_GetNumParam() > 1 )
+		{
+			if ( Scr_GetType(1) == VAR_INTEGER )
+				customPlayerState[id].droppingBulletVisualTime = Scr_GetInt(1);
+			else { stackError("gsc_zk_player_setbulletmodel() second argument has a wrong type"); stackPushUndefined(); return; }
+		}
+		else if ( customPlayerState[id].droppingBulletVisualTime == 0 )
+			customPlayerState[id].droppingBulletVisualTime = 1000;
+	}
+	else { stackError("gsc_zk_player_setbulletmodel() one or more arguments is undefined or has a wrong type"); stackPushUndefined(); return; }
+	stackPushBool(qtrue);
+}
+
+// ---- per-player FX ----
+void gsc_zk_player_playfxforplayer(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	int args;
+	qboolean error;
+	int index;
+	vec3_t origin;
+	vec3_t forward_vec;
+	vec3_t up_vec;
+	vec3_t cross;
+	float length;
+
+	args = Scr_GetNumParam();
+	error = qfalse;
+	switch ( args )
+	{
+		case 2:
+			if ( ! stackGetParams("iv", &index, &origin) ) error = qtrue;
+			break;
+		case 3:
+			if ( ! stackGetParams("ivv", &index, &origin, &forward_vec) ) error = qtrue;
+			break;
+		case 4:
+			if ( ! stackGetParams("ivvv", &index, &origin, &forward_vec, &up_vec) ) error = qtrue;
+			break;
+		default:
+			stackError("gsc_zk_player_playfxforplayer() incorrect number of parameters");
+			stackPushUndefined();
+			return;
+	}
+
+	if ( error )
+	{
+		stackError("gsc_zk_player_playfxforplayer() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_playfxforplayer() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+
+	gentity_t *ent = G_TempEntity(origin, EV_PLAY_FX);
+	ent->s.eventParm = index & 0xFF;
+	ent->s.otherEntityNum = id + 1;
+
+	if ( args == 2 )
+	{
+		ent->s.apos.trBase[0] = -90.0;
+	}
+	else
+	{
+		length = VectorLength(forward_vec);
+		if ( length == 0.0 )
+		{
+			stackError("gsc_zk_player_playfxforplayer() called with (0 0 0) forward direction");
+			stackPushUndefined();
+			return;
+		}
+		VectorScale(forward_vec, 1.0 / length, forward_vec);
+
+		if ( args == 3 )
+		{
+			vectoangles(forward_vec, ent->s.apos.trBase);
+		}
+		else
+		{
+			length = VectorLength(up_vec);
+			if ( length == 0.0 )
+			{
+				stackError("gsc_zk_player_playfxforplayer() called with (0 0 0) up direction");
+				stackPushUndefined();
+				return;
+			}
+			VectorScale(up_vec, 1.0 / length, up_vec);
+			Vec3Cross(up_vec, forward_vec, cross);
+
+			length = VectorLength(cross);
+			if ( length < 0.001 )
+			{
+				stackError("gsc_zk_player_playfxforplayer() up direction 0 or 180 degrees from forward");
+				stackPushUndefined();
+				return;
+			}
+			else if ( length < 0.999 )
+			{
+				VectorScale(cross, 1.0 / length, cross);
+				Vec3Cross(forward_vec, cross, up_vec);
+			}
+			// zk relied on adjacent stack locals forming an axis matrix; build it
+			// explicitly here (forward, right, up).
+			vec3_t axis[3];
+			VectorCopy(forward_vec, axis[0]);
+			VectorCopy(cross, axis[1]);
+			VectorCopy(up_vec, axis[2]);
+			AxisToAngles(axis, ent->s.apos.trBase);
+		}
+	}
+
+	stackPushEntity(ent);
+}
+
+// ---- activate on use-button release ----
+void gsc_zk_player_setactivateonusebuttonrelease(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setactivateonusebuttonrelease() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	qboolean value = Scr_GetInt(0);
+	customPlayerState[id].activateOnUseButtonRelease = value;
+	customPlayerState[id].heldUseButton = qfalse;
+	stackPushBool(qtrue);
+}
+
+// ---- command gate: processClientCommand ----
+extern qboolean playerCommand;
+extern void ClientCommand(int clientNum);
+
+void gsc_zk_player_processclientcommand(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_processclientcommand() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	if ( !playerCommand )
+	{
+		stackError("gsc_zk_player_processclientcommand() must be called from CodeCallback_PlayerCommand, without delay, and at most once per player command");
+		stackPushUndefined();
+		return;
+	}
+	ClientCommand(id);
+	playerCommand = qfalse;
+	stackPushBool(qtrue);
+}
+
 #endif

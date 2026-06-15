@@ -34,4 +34,13 @@ void gsc_zk_utils_getsurfacename();
 void gsc_zk_utils_findconfigstringindex();
 void gsc_zk_utils_findconfigstringindexoriginal();
 
+void gsc_zk_utils_sendcommandtoclient();
+void gsc_zk_utils_sendpacket();
+void gsc_zk_utils_sendcommandtoclient();
+void gsc_zk_utils_sendpacket();
+void gsc_zk_utils_makestring();
+void gsc_zk_utils_makeclientlocalizedstring();
+const char *zk_GetConsolePrefix(void);
+void gsc_zk_utils_setconsoleprefix();
+void gsc_zk_utils_processremotecommand();
 #endif

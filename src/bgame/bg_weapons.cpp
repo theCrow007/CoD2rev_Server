@@ -1714,6 +1714,11 @@ int BG_GetWeaponIndexForName( const char *name, int (*regWeap)(int) )
 		return WP_NONE;
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: ignoreWeapon() remaps ignored weapon names to the default weapon
+	{ extern const char *zk_IgnoredWeaponRemap(const char *name); name = zk_IgnoredWeaponRemap(name); }
+#endif
+
 	weapIndex = BG_FindWeaponIndexForName(name);
 
 	if ( weapIndex )

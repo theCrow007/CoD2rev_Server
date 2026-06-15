@@ -205,6 +205,10 @@ qboolean StuckInClient( gentity_t *self )
 			continue;
 		}
 
+#ifdef LIBCOD
+		{ extern qboolean zk_SkipCollision(gentity_t *a, gentity_t *b); if ( zk_SkipCollision(self, hit) ) continue; }
+#endif
+
 		if ( hit->health <= 0 )
 		{
 			continue;

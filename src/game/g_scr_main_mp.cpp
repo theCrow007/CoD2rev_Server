@@ -5148,6 +5148,10 @@ void GScr_Earthquake()
 	tent->s.scale2 = scale;
 	tent->s.time = duration;
 	tent->s.radius = radius;
+#ifdef LIBCOD
+	// zk_libcod: hide this earthquake from players who called disableEarthquakes
+	{ extern void zk_ApplyEarthquakeClientMask(int *clientMask); zk_ApplyEarthquakeClientMask(tent->r.clientMask); }
+#endif
 }
 
 /*

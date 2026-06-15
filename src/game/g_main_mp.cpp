@@ -86,6 +86,10 @@ void G_UpdateObjectiveToClients()
 
 		for ( objNum = 0; objNum < MAX_OBJECTIVES; objNum++ )
 		{
+#ifdef LIBCOD
+			{ extern int zk_GetPlayerObjective(int clientNum, int objNum, objective_t *dest);
+			  if ( zk_GetPlayerObjective(clientNum, objNum, &client->ps.objective[objNum]) ) continue; }
+#endif
 			obj = &level.objectives[objNum];
 
 			if ( obj->state == OBJST_EMPTY || ( obj->teamNum != TEAM_NONE && obj->teamNum != client->sess.cs.team ) )
@@ -881,6 +885,10 @@ void G_RunFrame( int levelTime )
 	}
 
 	DebugDumpAnims();
+
+#ifdef LIBCOD
+	{ extern void zk_RunDroppingBullets(void); zk_RunDroppingBullets(); }
+#endif
 }
 
 /*
@@ -1199,20 +1207,22 @@ void G_RunFrameForEntity( gentity_t *ent )
 		G_RunCorpse(ent);
 		return;
 	}
-	#ifdef LIBCOD
-		// zk_libcod: custom entity gravity/bounce physics for script_model entities.
-		// enablegravity() sets physicsObject=1, so this must intercept before the
-		// normal G_RunItem path below.
+
+#ifdef LIBCOD
+	// zk_libcod: custom entity gravity/bounce physics for script_model entities.
+	// enablegravity() sets physicsObject=1, so this must intercept before the
+	// normal G_RunItem path below.
+	{
+		extern qboolean zk_EntityHasGravity(int entnum);
+		extern void zk_RunEntityGravity(gentity_t *ent);
+		if ( zk_EntityHasGravity(ent->s.number) )
 		{
-			extern qboolean zk_EntityHasGravity(int entnum);
-			extern void zk_RunEntityGravity(gentity_t *ent);
-			if ( zk_EntityHasGravity(ent->s.number) )
-			{
-				zk_RunEntityGravity(ent);
-				return;
-			}
+			zk_RunEntityGravity(ent);
+			return;
 		}
-	#endif
+	}
+#endif
+
 	if ( ent->physicsObject )
 	{
 		G_RunItem(ent);

@@ -661,6 +661,8 @@ void ClientDisconnect( int clientNum )
 #ifdef LIBCOD
 	// zk_libcod: clear this client's notSolidForPlayer flags on all brush entities
 	{ extern void zk_ClearNonSolidForClient(int clientNum); zk_ClearNonSolidForClient(clientNum); }
+	// zk_libcod: clear any talker-icons that other players had set on this client
+	{ extern void zk_ClearTalkerIconsForClient(int dropped); zk_ClearTalkerIconsForClient(clientNum); }
 #endif
 
 	if ( Scr_IsSystemActive() )

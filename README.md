@@ -4,8 +4,8 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 154 of 221 GSC functions** in the case-insensitive delta (functions zk has that rev
-lacks), plus the custom-state infrastructure and 20 native engine hooks. Every round compiles and
+**Progress: 200 of 221 GSC functions** (21 zk names remain) in the case-insensitive delta (functions zk has that rev
+lacks), plus the custom-state infrastructure and 25 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
 ---
@@ -93,11 +93,22 @@ base MySQL code).
 
 New isolated modules in `src/libcod/` (auto-compiled by the wildcard):
 
-### gsc_zk_utils.cpp — 22 functions
+### Per-player/team collision (collisionTeam)
+`getCollisionTeam()` / `setCollisionTeam("none"|"axis"|"allies"|"axis_allies")` (player methods). Players whose collision teams don't match pass through each other. The `customTeam_t` enum and `collisionTeam` field already existed in custom-state; added the `zk_SkipCollision(a,b)` helper, the custom `axis_allies` script const (`zk_const_axis_allies`, allocated in a `GScr_LoadConsts` hook), and the two get/set methods.
+
+**Hooks (3):** `GScr_LoadConsts` (scr_const_mp.cpp) allocates the `axis_allies` const; `SV_ClipMoveToEntity` (sv_world_mp.cpp) skips the clip when `zk_SkipCollision` is true (movement/trace pass-through); `StuckInClient` (g_active_mp.cpp) skips the player-ejection pass. **Intentionally NOT ported:** zk's 3rd site in `MSG_WriteDeltaStruct` (snapshot-delta encoder) — a client-side prediction refinement; server-side collision is fully handled by the two physics hooks above.
+
+### Weapon ignore / default weapon (in gsc_zk_weapons.cpp)
+`ignoreWeapon(name)`, `resetIgnoredWeapons()`, `setDefaultWeapon(name)`. A `BG_GetWeaponIndexForName` hook remaps any ignored weapon name to the default before lookup. **Limitation:** zk's `setDefaultWeapon` byte-patches the engine's global default-weapon fallback at fixed addresses (`G_SetupWeaponDef`/`BG_FillInAmmoItems`) — not portable to rev's recompiled binary — so rev's `setDefaultWeapon` only sets the weapon that `ignoreWeapon` substitutions resolve to (defaults to `defaultweapon_mp`), it does not change the engine-wide fallback.
+
+### gsc_bots.cpp — 11 bot-action methods (rev's native bot module, now registered)
+rev already shipped a button-based bot input system (`bot_buttons`/`bot_forwardmove`/`bot_rightmove`/`bot_weapon`, consumed by `SV_BotUserMove_libcod`) but left it **unregistered**. Registered the full zk-compatible method set: `setAim` (=ADS toggle), `setWalkDir`, `setWalkValues` (analog forward/right), `setLean`, `setBotStance`, `fireWeapon`, `meleeWeapon`, `reloadWeapon`, `switchToWeaponId`, `throwGrenade`, `throwSmokeGrenade`. `setWalkValues` and `throwSmokeGrenade` (BUTTON_SMOKE) are new; the rest expose rev's existing implementations. No engine hook needed — the consumption (`SV_BotUserMove_libcod`) was already wired.
+
+### gsc_zk_utils.cpp — 26 functions
 `abs`, `atan2`, `ceil`, `floor`, `chr`, `ord`, `tohex`, `fromhex`, `roundTo`, `error`,
 `executeCommand`, `getMilliseconds`, `getMicroseconds`, `getCvarFlags`, `getSystemTime`,
 `getLocalTime`, `fremove`, `loadDir`, `logPrintConsole`, `getSurfaceName`,
-`findConfigStringIndex`, `findConfigStringIndexOriginal`. (`pow` = alias to rev's exponent fn.)
+`findConfigStringIndex`, `findConfigStringIndexOriginal`, plus networking: `sendCommandToClient`, `sendPacket`, plus string helpers: `makeString` (localized→plain) and `makeClientLocalizedString` (wrap in \\x14..\\x15 markers). (`pow` = alias to rev's exponent fn.) Async-exec functions `execute`/`execute_async_create`/`execute_async_create_nosave`/`execute_async_checkdone` are exposed (zk names aliased onto rev's pre-existing `exec*` implementation: synchronous + threaded `popen` with GSC callbacks).
 
 ### gsc_zk_weapons.cpp — 8 functions
 `isSemiAutoWeapon`, `getWeaponRaiseTime`/`setWeaponRaiseTime`, `getWeaponFuseTime`/`setWeaponFuseTime`,
@@ -133,7 +144,7 @@ custom script-constant registration; physics is unaffected), and the `EF_TAGCONN
 `getMovers`, `getEntityCount`, `setNorthYaw`, `getSavePersist`/`setSavePersist`
 (via rev's `G_GetSavePersist`/`G_SetSavePersist`).
 
-### gsc_zk_player.cpp — 87 functions
+### gsc_zk_player.cpp — 108 functions
 - **Custom-state setters:** `enableSilent`/`disableSilent`, `overrideContents`,
   `setWeaponSpreadScale`, `setTurretSpreadScale`, `setMeleeRangeScale`/`setMeleeWidthScale`/`setMeleeHeightScale`,
   `setSpeed`/`setGravity`, `setHiddenFromScoreboard`/`isHiddenFromScoreboard`,
@@ -152,7 +163,7 @@ custom script-constant registration; physics is unaffected), and the `EF_TAGCONN
   `getAddressType`, `getServerCommandQueueSize`, `getUserinfo`, `setGuid`, `muteClient`,
   `unmuteClient`, `renameClient`, `setUserinfo`, `setConfigStringForPlayer`,
   `setNorthYawForPlayer`, `resetNextReliableTime`, `connectionlessPacketToClient`,
-  `connectionlessPacketToServer`, `setHoldingWeaponDown`, plus bullet-mask: `setFireThroughWalls`, `getBulletMask`, `setBulletMask`, plus spectator/turret/state readers: `isAllowingSpectators`, `setAllowSpectators`, `isHoldingWeaponDown`, `canUseTurret`.
+  `connectionlessPacketToServer`, `setHoldingWeaponDown`, plus bullet-mask: `setFireThroughWalls`, `getBulletMask`, `setBulletMask`, plus spectator/turret/state readers: `isAllowingSpectators`, `setAllowSpectators`, `isHoldingWeaponDown`, `canUseTurret`, plus movement tuning: `setStepSize`/`setProneStepSize`, `setJumpHeight`/`setJumpSlowdownEnable`, plus per-player fog: `setCullFogForPlayer`/`setExpFogForPlayer` (send the stock `"d 12"` fog server-command to one client — no engine hook), plus per-player earthquakes: `enableEarthquakes`/`disableEarthquakes` (mask the global `earthquake()` temp entity so opted-out players don't feel it), plus talker icons: `enableTalkerIcon`/`disableTalkerIcon` (inject fake voice packets so a target shows a talking HUD icon), plus `setAnimation` (force a named animation on a live player via a `BG_PlayAnim` override, or write a corpse's legs anim directly), plus client-command: `executeClientCommand` (force a client to run a command) and `processClientUserinfoChange` (re-apply a client's userinfo), plus use/look stragglers: `lookAtKiller`, `useEntity`, `useTurret`, `isUseTouching` (all call existing rev engine funcs; `GetEntity` reconciled to a by-number lookup helper).
 
 ### gsc_zk_custom_state.cpp — infrastructure (not GSC functions)
 `customPlayerState[MAX_CLIENTS]` + `customEntityState[MAX_GENTITIES]` arrays, lifecycle
@@ -184,6 +195,11 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | bullet mask / fireThroughWalls | `zk_GetBulletMask` | `Bullet_Fire_Extended` (override trace contentmask per attacker) |
 | allow-spectators | `zk_IsNotAllowingSpectators` | `Cmd_FollowCycle_f` (skip clients who disabled being spectated) |
 | per-player step size | `zk_GetStepSizeOverride` | `PM_StepSlideMove` (override STEPSIZE / STEPSIZE_PRONE) |
+| per-player forced snapshot ents | `zk_GetForcedSnapshotCount`, `zk_GetForcedSnapshotEnt` | `SV_BuildClientSnapshot` (non-cached path: append forced ents via `SV_AddEntToSnapshot` after the PVS gather) |
+| setAnimation override | `zk_GetPlayerAnimationOverride` (+ `zk_GetAnimationId` helper) | `BG_PlayAnim` (substitute the custom animation for non-death anims; corpse path writes `s.legsAnim` directly) |
+| talker icons | `zk_RunTalkerIcons` (+ `zk_ClearTalkerIconsForClient`) | `SV_SendClientMessages` (inject fake voice packets each frame so `enableTalkerIcon` targets show a talking HUD icon); disconnect cleanup in client-disconnect path |
+| per-player earthquakes | `zk_ApplyEarthquakeClientMask` | `GScr_Earthquake` (mask the EV_EARTHQUAKE temp ent's `r.clientMask` for players who called `disableEarthquakes`) |
+| per-player objectives | `zk_GetPlayerObjective` | `G_UpdateObjectiveToClients` (prefer per-player objective over `level.objectives[]` when set) |
 | per-player jump height/slowdown | `zk_GetJumpHeightOverride`, `zk_GetJumpSlowdownOverride` | `bg_jump.cpp` (swap `jump_height`/`jump_slowdownEnable` dvar reads for per-player accessors across `Jump_IsPlayerAboveMax`/`Jump_GetStepHeight`/`Jump_ClampVelocity`/`Jump_*Slowdown*`/`Jump_Check`) |
 | per-client solidity | `zk_IsNonSolidForClient` / `zk_ClearNonSolidForClient` / `zk_playerMovementTrace` | `SV_ClipMoveToEntity` (server skip, gated by `Pmove` wrapper in `g_active_mp.cpp`) + `SV_EmitPacketEntities` (OR `EF_NONSOLID_BMODEL` into the client's snapshot copy) + `ClientDisconnect` (clear flags) |
 
@@ -205,11 +221,14 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | `src/server/sv_game_mp.cpp` | overridePing |
 | `src/bgame/bg_weapons.cpp` | holdingDownWeapon enforcement in `PM_Weapon` |
 | `src/game/player_use_mp.cpp` | holdingDownWeapon suppresses item cursor hint |
-| `src/game/g_main_mp.cpp` | entity-gravity dispatch in `G_RunFrameForEntity` |
+| `src/game/g_scr_main_mp.cpp` | per-player earthquake suppression in `GScr_Earthquake` |
+| `src/game/g_main_mp.cpp` | entity-gravity dispatch in `G_RunFrameForEntity` + per-player objectives in `G_UpdateObjectiveToClients` |
 | `src/server/sv_world_mp.cpp` | per-client solidity skip in `SV_ClipMoveToEntity` |
 | `src/bgame/bg_slidemove.cpp` | per-player step size override in `PM_StepSlideMove` |
+| `src/bgame/bg_animation_mp.cpp` | `setAnimation` override + `zk_GetAnimationId` helper in `BG_PlayAnim` |
 | `src/bgame/bg_jump.cpp` | per-player jump height + jump slowdown overrides (dvar reads → accessors) |
-| `src/server/sv_snapshot_mp.cpp` | per-client `EF_NONSOLID_BMODEL` in `SV_EmitPacketEntities` |
+| `src/server/sv_snapshot_mp.cpp` (also) | talker-icon fake-voice injection in `SV_SendClientMessages` |
+| `src/server/sv_snapshot_mp.cpp` | forced snapshot ents in `SV_BuildClientSnapshot`; plus original: per-client `EF_NONSOLID_BMODEL` in `SV_EmitPacketEntities` |
 
 ---
 
@@ -262,9 +281,9 @@ use x64-safe patterns to avoid adding instances.
 - **Subsystems (struct fields trimmed, need un-trimming + hooks):** jump height/slowdown DONE
   (`setJumpHeight`/`setJumpSlowdownEnable` via per-player accessors threaded into rev's native
   `bg_jump.cpp` — no `Jump_Check` replacement needed; `setStepSize`/`setProneStepSize` also DONE),
-  objectives (`objective_player_*`), custom sound (`playSoundFile` family),
-  animation (`setAnimation`), talker icons, the `previousButtons` button-edge logic.
-- **Snapshot deep features** — `getNumberOfEntsInSnapshot`, `notAllowingSpectators`.
+  custom sound (`playSoundFile` family),
+  the `previousButtons` button-edge logic.
+- **Snapshot forcing** — DONE: `addEntToSnapshots`/`removeEntFromSnapshots`/`getNumberOfEntsInSnapshot` via `SV_BuildClientSnapshot` hook (non-cached path only; the cached/anti-lag archive path and zk's `sv_autoAddSnapshotEntities` "forced-only" mode are intentionally not replicated).
 - **VoroN MySQL variant 2** — PORTED: `gsc_mysql_voron.cpp`/`.hpp` added (31 functions; sync + async + 2 entity-query methods), registered under `LIBCOD_COMPILE_MYSQL_VORON`, builds with `MYSQL_VARIANT=2` (needs the user's `libmysqlclient`). Base MySQL (variant 1) was already present in upstream. Compile-verified; not link-tested in sandbox (no client lib).
 - **gclient setters/readers blocked on missing rev symbols** — `setOriginAndAngles`
   (`SetClientViewAngles`), `isRechambering`/`setRechambering`/`getCurrentWeaponSlot` (rev lacks `GetCurrentWeaponSlot`),
@@ -303,6 +322,82 @@ porting — several zk "missing" functions were already present under different 
 trivial rebinds.
 
 ---
+
+## 9. How to apply (general pattern each round)
+
+1. `git checkout` the rev source files being re-patched.
+2. `cp` the updated `gsc_zk_*` module files into `src/libcod/`.
+3. `git apply` the relevant `*.patch` files.
+4. `./build.sh nomysql` (or your MySQL variant once the client lib is in place).
+5. Functional test in-game.
+
+All deliverables are in the outputs folder: the 6 `gsc_zk_*` module pairs, `gsc_zk_custom_state`,
+and per-file patches for `gsc.cpp` and each modified rev source file.
+
+## Command gate (processClientCommand / processRemoteCommand)
+A CodeCallback gate: the engine routes each client/rcon command to a GSC callback (`CodeCallback_PlayerCommand`/`_RemoteCommand`), which decides whether to run it by calling `processClientCommand`/`processRemoteCommand`.
+- **processClientCommand** (player method): rev already had `hook_ClientCommand` + `codecallback_playercommand` + resolution wired into `SV_ExecuteClientCommand`; it only lacked the `playerCommand` guard flag (now set around the `Scr_ExecEntThread` call) and the GSC function (calls `ClientCommand(id)` when the flag is set). Without this, a defined `CodeCallback_PlayerCommand` would silently block *all* client commands.
+- **processRemoteCommand** (function): the remote side was absent. Added `codecallback_remotecommand` + resolution, a `zk_remoteCommand` store, and three libcod helpers (`zk_RemoteCommandGate` runs the callback; `zk_RemoteCommandActive`; `zk_RemoteCommandExecute` mirrors the rcon execute-with-redirect path). Injected the gate into `SVC_RemoteCommand` (sv_main_pc_mp.cpp) after the password check — no signature change, no rate-limit re-entry: the callback runs synchronously and `processRemoteCommand` executes the still-current args directly.
+
+## Misc one-offs
+- `playFxForPlayer(fxIndex, origin, [forward], [up])` (player method) — spawns an `EV_PLAY_FX` temp-entity targeted via `otherEntityNum`; self-contained, no hook. Reconciled `VectorCross`→`Vec3Cross`, `VecToAngles`→`vectoangles`, `Scr_FxParamError`→`stackError`, and built an explicit axis matrix for `AxisToAngles` (zk relied on adjacent stack locals).
+- `setActivateOnUseButtonRelease(bool)` (player method) — fires the activate/use action on button *release* instead of press. Fields already existed in custom-state; added accessors and wrapped rev's `Player_UpdateActivate` (player_use_mp.cpp) with the release branch (reconciled `KEY_MASK_USE/USERELOAD`→`BUTTON_USE/USERELOAD`, the use-flag set→`PMF_RELOAD`). The original activate block is preserved byte-identical inside an `#ifdef LIBCOD` `else`.
+- `setConsolePrefix(str)` — overrides the server-console `say`/`tell` sender name (default `console: `). The consumption is NOT a Com_Printf hook (earlier note was wrong); zk replaces the literal `strcpy(text,"console: ")` in `SV_ConSay_f`/`SV_ConTell_f`. Added a `zk_GetConsolePrefix()` accessor + the global, and swapped both strcpy calls in sv_ccmds_mp.cpp under `#ifdef LIBCOD`.
+- `spawnGrenade(weapon, origin, [dir], [velocity], [fuseSeconds])` (player/weapons method) — launches a live grenade via rev's `fire_grenade`; no hook. Reconciled `WeaponDef_t`→`WeaponDef`, `iFuseTime`→`fuseTime`, `IsValidWeaponId`→index check.
+
+**Still pending (need hooks/infra, not quick):** `getTagAngles` (needs the `enableLinkTo`/tag system), `processClientCommand`/`processRemoteCommand` (need a CodeCallback gate).
+
+## Test client naming
+`setNextTestClientName(name)` (sticky 1-31 char name for subsequently spawned bots) and `resetTestClientNaming()` (revert to default `bot<n>`). zk byte-patched the engine's static connect-string template; rev instead stores the name in a `gsc_bots.cpp` global and a `SV_AddTestClient` hook (sv_client_mp.cpp) substitutes `name\\%s` for the default `name\\bot%d` when one is set. Functions, not methods.
+
+## Ballistics — status
+
+`enableBulletImpacts`/`disableBulletImpacts`/`setFireRangeScale` were already done in earlier rounds. The
+remaining 5 (`enableBulletDrop`, `disableBulletDrop`, `setBulletDrag`, `setBulletVelocity`, `setBulletModel`) are
+the **bullet-drop projectile simulation** — a ~400-line core-combat subsystem. Unlike Speex it is fully portable
+(rev exposes `Bullet_Fire`, `Bullet_Fire_Extended`, `Bullet_GetDamage`, `G_LocationalTrace`, `G_TempEntity`,
+`Bullet_Endpos`, etc.) and sandbox-verifiable, but it touches the most gameplay-critical path, so it is being done
+in phases.
+
+**Phase 1 — DONE & verified (compiles + links):** `droppingBullet_t` struct + `MAX_DROPPING_BULLETS` + 8
+`customPlayerState` fields (custom_state.hpp); the 5 GSC setters (gsc_zk_player.cpp), registered as methods. These
+store state only — they are INERT until Phase 2/3.
+
+**Phase 2 — DONE & verified (compiles clean + links):** new module `gsc_zk_ballistics.cpp` with the 9 sim functions (`zk_Bullet_Fire_Drop`, `_Think` + `_AntiLag`, `zk_Bullet_Drop_Firstpos`/`_Nextpos`/`_Free`, visual `_Create`/`_Update`/`_Finalize`). Reconciliations applied: `Bullet_CalcDamageRange`→`Bullet_GetDamage`; `Bullet_Endpos` 5-arg (added `-1`); `bRifleBullet`→`rifleBullet`; `VecToAngles`→`vectoangles`; `antilagClientStore`→`AntilagClientStore`; priority maps used by name (rev defines them as `unsigned char[]`); added `bullet` classname const via the `GScr_LoadConsts` hook; registered `g_corpseHit` + `g_bulletDrop` dvars. Functions are present-but-uncalled until Phase 3 wires them.
+
+**Phase 3 — DONE & verified (compiles + links):** registered `g_bulletDropMaxTime` (int, default 10000ms); added helpers `zk_RunDroppingBullets()` + `zk_TryFireDroppingBullet()` to the ballistics module; hooked `G_RunFrame` (g_main_mp.cpp) to advance active bullets each frame; hooked `Bullet_Fire` (g_weapon_mp.cpp) to queue a simulated bullet instead of hitscan when `g_bulletDrop` is on and the shooter has `droppingBulletsEnabled`. Feature is LIVE (gated behind `g_bulletDrop`, default off). Dvars: `g_bulletDrop` (on/off), `g_bulletDropMaxTime` (max flight ms), reuses `g_antilag`, `g_corpseHit`.
+
+## Sound / Speex subsystem — feasibility (investigated, NOT a quick win)
+
+Unlike the other groups, the 11 sound/speex names are one integrated custom-sound system, not independent
+functions. Three distinct situations:
+
+**A. Hard-blocked — rev's reverse-engineered binary does not expose the needed symbol/field (cannot port):**
+- `getSoundDuration`, `getSoundInfo` — both need `snd_alias_list_t->head->soundFile->soundName` to resolve an
+  alias to its WAV file. rev's `snd_alias_t` (the `head`) is opaque: `soundFile`/`soundName` appear nowhere in
+  the source. (getSoundDuration additionally shells out to `ffprobe` at runtime.)
+- `getSoundAliasesFromFile` — needs `customSoundAliasInfo`, which zk builds by walking the engine's internal
+  alias-loader globals `saLoadObjGlob`/`saLoadedObjs` via the `snd_alias_build_s` struct. All three are MISSING
+  in rev (internal symbols not linkable by name).
+
+**B. Portable, but the whole custom-sound subsystem + libspeex-dev, and NOT sandbox-verifiable:**
+- `loadSpeexFile`, `saveSpeexFile` — `#include <speex/speex.h>` (encode/decode). The sandbox has the speex
+  *runtime* (`libspeex.so.1`) but not the *dev header*, and apt isn't available here, so these cannot be
+  compile-verified in the sandbox. They compile + link on a build machine with `libspeex-dev` installed.
+- `loadSoundFile`, `playSoundFile`, `stopSoundFile`, `isPlayingSoundFile`, `getRemainingSoundFileDuration` —
+  require the custom-sound packet store `voiceDataStore[MAX_CUSTOMSOUNDS][MAX_STOREDVOICEPACKETS]`
+  (= [64][30720], ~8 MB/10-min sound), the constants (MAX_VOICEFRAMESIZE 160, MAX_VOICEPACKETSPERFRAME 2.56,
+  MAX_CUSTOMSOUNDDURATION 10), per-player playback state, and a per-frame streaming hook feeding packets through
+  the voice path (`SV_QueueVoicePacket`, already used by talker icons). Large but mechanically portable.
+
+**C. Cleanly portable + sandbox-verifiable, but marginal alone:**
+- `getSoundFileDuration` — all rev deps present; needs only the 5 constants above. It measures a file already in
+  the custom-sound packet format, so it is only meaningful once the (B) playback system exists.
+
+**Net:** 3 of 11 are hard-blocked. The other 8 form the single largest feature in the port and depend on
+`libspeex-dev` + partial (structure-only) sandbox verification. This is a dedicated effort, not a drop-in round.
+
+
 
 # CoD2rev_Server
 

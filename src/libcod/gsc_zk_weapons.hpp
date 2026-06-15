@@ -26,4 +26,8 @@ void gsc_zk_weapons_getmovespeedscale();
 void gsc_zk_weapons_setmovespeedscale();
 void gsc_zk_weapons_getweapondisplayname();
 
+void gsc_zk_weapons_ignoreweapon();
+void gsc_zk_weapons_resetignoredweapons();
+void gsc_zk_weapons_setdefaultweapon();
+void gsc_zk_weapons_spawngrenade(scr_entref_t ref);
 #endif

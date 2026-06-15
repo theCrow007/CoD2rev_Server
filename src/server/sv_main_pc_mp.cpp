@@ -94,6 +94,16 @@ void SVC_RemoteCommand( netadr_t from, msg_t *msg )
 		Com_Printf( "Rcon from %s:\n%s\n", NET_AdrToString( from ), Cmd_Argv( 2 ) );
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: CodeCallback_RemoteCommand gate (processRemoteCommand runs it)
+	if ( valid )
+	{
+		extern qboolean zk_RemoteCommandGate(netadr_t from, msg_t *msg);
+		if ( zk_RemoteCommandGate(from, msg) )
+			return;
+	}
+#endif
+
 	// start redirecting all print outputs to the packet
 	svs.redirectAddress = from;
 	// FIXME TTimo our rcon redirection could be improved

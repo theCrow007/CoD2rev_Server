@@ -923,6 +923,11 @@ void SV_SendClientMessages( void )
 	sv.bpsTotalBytes = 0;       // NERVE - SMF - net debugging
 	sv.ubpsTotalBytes = 0;      // NERVE - SMF - net debugging
 
+#ifdef LIBCOD
+	// zk_libcod: inject fake voice packets so enableTalkerIcon shows talking icons
+	{ extern void zk_RunTalkerIcons(void); zk_RunTalkerIcons(); }
+#endif
+
 	// send a message to each connected client
 	for ( i = 0; i < sv_maxclients->current.integer; i++ )
 	{
@@ -2100,6 +2105,20 @@ void SV_BuildClientSnapshot( client_t *client )
 	// may include portal entities that merge other viewpoints
 	SV_AddEntitiesVisibleFromPoint( org, clientNum, &entityNumbers );
 
+#ifdef LIBCOD
+	// zk_libcod: force per-player addEntToSnapshots entities into this snapshot
+	{
+		extern int zk_GetForcedSnapshotCount(int clientNum);
+		extern int zk_GetForcedSnapshotEnt(int clientNum, int idx);
+		int zk_fn = zk_GetForcedSnapshotCount(clientNum);
+		for ( int zk_i = 0; zk_i < zk_fn; zk_i++ )
+		{
+			int zk_e = zk_GetForcedSnapshotEnt(clientNum, zk_i);
+			if ( zk_e >= 0 )
+				SV_AddEntToSnapshot( zk_e, &entityNumbers );
+		}
+	}
+#endif
 	// copy the entity states out
 	for ( i = 0 ; i < entityNumbers.numSnapshotEntities ; i++ )
 	{

@@ -14,4 +14,9 @@ void gsc_bots_reloadweapon(scr_entref_t id);
 void gsc_bots_adsaim(scr_entref_t id);
 void gsc_bots_switchtoweaponid(scr_entref_t id);
 
+void gsc_bots_setwalkvalues(scr_entref_t id);
+void gsc_bots_throwsmokegrenade(scr_entref_t id);
+const char *zk_GetNextTestClientName(void);
+void gsc_bots_setnexttestclientname();
+void gsc_bots_resettestclientnaming();
 #endif

@@ -366,4 +366,117 @@ void gsc_bots_switchtoweaponid(scr_entref_t id)
 	stackPushBool(qtrue);
 }
 
+void gsc_bots_setwalkvalues(scr_entref_t id)
+{
+	int forward, right;
+
+	if ( ! stackGetParams("ii", &forward, &right))
+	{
+		stackError("gsc_bots_setwalkvalues() one or more arguments is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if (id.entnum >= MAX_CLIENTS)
+	{
+		stackError("gsc_bots_setwalkvalues() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id.entnum];
+
+	if (client->netchan.remoteAddress.type != NA_BOT)
+	{
+		stackError("gsc_bots_setwalkvalues() player %i is not a bot", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	// clamp to the signed-char range used by ucmd.forwardmove / rightmove
+	if (forward > 127) forward = 127; else if (forward < -127) forward = -127;
+	if (right > 127) right = 127; else if (right < -127) right = -127;
+
+	extern char bot_forwardmove[MAX_CLIENTS];
+	extern char bot_rightmove[MAX_CLIENTS];
+
+	bot_forwardmove[id.entnum] = (char)forward;
+	bot_rightmove[id.entnum] = (char)right;
+
+	stackPushBool(qtrue);
+}
+
+void gsc_bots_throwsmokegrenade(scr_entref_t id)
+{
+	int grenade;
+
+	if ( ! stackGetParams("i", &grenade))
+	{
+		stackError("gsc_bots_throwsmokegrenade() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if (id.entnum >= MAX_CLIENTS)
+	{
+		stackError("gsc_bots_throwsmokegrenade() entity %i is not a player", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	client_t *client = &svs.clients[id.entnum];
+
+	if (client->netchan.remoteAddress.type != NA_BOT)
+	{
+		stackError("gsc_bots_throwsmokegrenade() player %i is not a bot", id.entnum);
+		stackPushUndefined();
+		return;
+	}
+
+	extern int bot_buttons[MAX_CLIENTS];
+
+	if (!grenade)
+		bot_buttons[id.entnum] &= ~BUTTON_SMOKE;
+	else
+		bot_buttons[id.entnum] |= BUTTON_SMOKE;
+
+	stackPushBool(qtrue);
+}
+
+// ---- test client naming (setNextTestClientName / resetTestClientNaming) ----
+static char zk_nextTestClientName[32] = "";
+
+const char *zk_GetNextTestClientName(void)
+{
+	return zk_nextTestClientName[0] ? zk_nextTestClientName : NULL;
+}
+
+void gsc_bots_setnexttestclientname()
+{
+	char *str;
+
+	if ( ! stackGetParams("s", &str))
+	{
+		stackError("gsc_bots_setnexttestclientname() argument is undefined or has a wrong type");
+		stackPushUndefined();
+		return;
+	}
+
+	if ( !strlen(str) || strlen(str) > 31 )
+	{
+		stackError("gsc_bots_setnexttestclientname() requires a string of length 1-31 characters");
+		stackPushUndefined();
+		return;
+	}
+
+	I_strncpyz(zk_nextTestClientName, str, sizeof(zk_nextTestClientName));
+	stackPushBool(qtrue);
+}
+
+void gsc_bots_resettestclientnaming()
+{
+	zk_nextTestClientName[0] = '\0';
+	stackPushBool(qtrue);
+}
+
 #endif

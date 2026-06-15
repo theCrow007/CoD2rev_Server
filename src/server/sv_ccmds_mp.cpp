@@ -706,7 +706,12 @@ static void SV_ConSay_f( void )
 		return;
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: setConsolePrefix() overrides the server console say/tell sender
+	{ extern const char *zk_GetConsolePrefix(void); strcpy( text, zk_GetConsolePrefix() ); }
+#else
 	strcpy( text, "console: " );
+#endif
 	p = Cmd_Args(1);
 
 	if ( *p == '"' )
@@ -755,7 +760,12 @@ static void SV_ConTell_f( void )
 		return;
 	}
 
+#ifdef LIBCOD
+	// zk_libcod: setConsolePrefix() overrides the server console say/tell sender
+	{ extern const char *zk_GetConsolePrefix(void); strcpy( text, zk_GetConsolePrefix() ); }
+#else
 	strcpy( text, "console: " );
+#endif
 	p = Cmd_Args(2);
 
 	if ( *p == '"' )
