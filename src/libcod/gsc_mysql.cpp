@@ -3,6 +3,11 @@
 #if LIBCOD_COMPILE_MYSQL == 1
 
 #include "mysql/include/mysql.h"
+#include <cstring>
+#include <cstdlib>
+
+// Default connection for zk-style calls (without handle)
+static MYSQL *default_zk_connection = NULL;
 
 struct mysql_async_task
 {
@@ -267,6 +272,43 @@ void gsc_mysql_async_initializer()//returns array with mysql connection handlers
 	Sys_CreateNewThread(mysql_async_query_handler, &async_handler, NULL);
 }
 
+// ============================================================
+// NEW: zk-style initialization function
+// ============================================================
+void gsc_mysql_initialize()
+{
+	const char *host, *user, *pass, *db;
+	int port;
+	
+	if (!stackGetParams("ssssi", &host, &user, &pass, &db, &port))
+	{
+		stackError("mysql_initialize(host, user, pass, db, port)");
+		stackPushUndefined();
+		return;
+	}
+	
+	if (default_zk_connection == NULL)
+	{
+		MYSQL *my = mysql_init(NULL);
+		int reconnect = 1;
+		mysql_options(my, MYSQL_OPT_RECONNECT, &reconnect);
+		
+		if (!mysql_real_connect(my, host, user, pass, db, port, NULL, 0))
+		{
+			stackError(mysql_error(my));
+			mysql_close(my);
+			stackPushUndefined();
+			return;
+		}
+		
+		default_zk_connection = my;
+		cod_mysql_connection = my;
+	}
+	
+	stackPushInt((intptr_t)default_zk_connection);
+}
+
+// Original rev functions (preserved)
 void gsc_mysql_init()
 {
 	MYSQL *my = mysql_init(NULL);
@@ -304,6 +346,8 @@ void gsc_mysql_real_connect()
 	mysql_options((MYSQL*)mysql, MYSQL_OPT_RECONNECT, &reconnect);
 	if(cod_mysql_connection == NULL)
 		cod_mysql_connection = (MYSQL*) mysql;
+	if(default_zk_connection == NULL)
+		default_zk_connection = (MYSQL*) mysql;
 	stackPushInt(mysql);
 }
 
@@ -319,23 +363,60 @@ void gsc_mysql_close()
 	}
 
 	mysql_close((MYSQL *)mysql);
+	if(default_zk_connection == (MYSQL *)mysql)
+		default_zk_connection = NULL;
+	if(cod_mysql_connection == (MYSQL *)mysql)
+		cod_mysql_connection = NULL;
 	stackPushInt(0);
 }
 
+// Modified: supports both mysql_query(handle, query) AND mysql_query(query)
 void gsc_mysql_query()
 {
-	int mysql;
-	const char *query;
-
-	if ( ! stackGetParams("is", &mysql, &query))
+	int num_params = Scr_GetNumParam();
+	
+	// zk-style: mysql_query(query) - uses default connection
+	if (num_params == 1)
 	{
-		stackError("gsc_mysql_query() one or more arguments is undefined or has a wrong type");
-		stackPushUndefined();
+		const char *query;
+		if (!stackGetParamString(0, &query))
+		{
+			stackError("mysql_query(query) - string expected");
+			stackPushUndefined();
+			return;
+		}
+		
+		if (default_zk_connection == NULL)
+		{
+			stackError("mysql_query(query) - no default connection. Call mysql_initialize() or mysql_real_connect() first.");
+			stackPushUndefined();
+			return;
+		}
+		
+		stackPushInt(mysql_query(default_zk_connection, query));
 		return;
 	}
-
-	int ret = mysql_query((MYSQL *)mysql, query);
-	stackPushInt(ret);
+	
+	// Original rev style: mysql_query(handle, query)
+	if (num_params == 2)
+	{
+		int mysql;
+		const char *query;
+		
+		if ( ! stackGetParams("is", &mysql, &query))
+		{
+			stackError("gsc_mysql_query(handle, query)");
+			stackPushUndefined();
+			return;
+		}
+		
+		int ret = mysql_query((MYSQL *)mysql, query);
+		stackPushInt(ret);
+		return;
+	}
+	
+	stackError("gsc_mysql_query() expects 1 or 2 arguments");
+	stackPushUndefined();
 }
 
 void gsc_mysql_errno()
@@ -353,49 +434,122 @@ void gsc_mysql_errno()
 	stackPushInt(ret);
 }
 
+// Modified: supports both mysql_error(handle) AND mysql_error()
 void gsc_mysql_error()
 {
-	int mysql;
-
-	if ( ! stackGetParams("i", &mysql))
+	int num_params = Scr_GetNumParam();
+	
+	// zk-style: mysql_error() - uses default connection
+	if (num_params == 0)
 	{
-		stackError("gsc_mysql_error() argument is undefined or has a wrong type");
-		stackPushUndefined();
+		if (default_zk_connection == NULL)
+		{
+			stackError("mysql_error() - no default connection");
+			stackPushUndefined();
+			return;
+		}
+		
+		stackPushString((char *)mysql_error(default_zk_connection));
 		return;
 	}
-
-	char *ret = (char *)mysql_error((MYSQL *)mysql);
-	stackPushString(ret);
+	
+	// Original rev style: mysql_error(handle)
+	if (num_params == 1)
+	{
+		int mysql;
+		if ( ! stackGetParams("i", &mysql))
+		{
+			stackError("gsc_mysql_error(handle)");
+			stackPushUndefined();
+			return;
+		}
+		
+		char *ret = (char *)mysql_error((MYSQL *)mysql);
+		stackPushString(ret);
+		return;
+	}
+	
+	stackError("gsc_mysql_error() expects 0 or 1 arguments");
+	stackPushUndefined();
 }
 
+// Modified: supports both mysql_affected_rows(handle) AND mysql_affected_rows()
 void gsc_mysql_affected_rows()
 {
-	int mysql;
-
-	if ( ! stackGetParams("i", &mysql))
+	int num_params = Scr_GetNumParam();
+	
+	// zk-style: mysql_affected_rows() - uses default connection
+	if (num_params == 0)
 	{
-		stackError("gsc_mysql_affected_rows() argument is undefined or has a wrong type");
-		stackPushUndefined();
+		if (default_zk_connection == NULL)
+		{
+			stackError("mysql_affected_rows() - no default connection");
+			stackPushUndefined();
+			return;
+		}
+		
+		stackPushInt(mysql_affected_rows(default_zk_connection));
 		return;
 	}
-
-	int ret = mysql_affected_rows((MYSQL *)mysql);
-	stackPushInt(ret);
+	
+	// Original rev style: mysql_affected_rows(handle)
+	if (num_params == 1)
+	{
+		int mysql;
+		if ( ! stackGetParams("i", &mysql))
+		{
+			stackError("gsc_mysql_affected_rows(handle)");
+			stackPushUndefined();
+			return;
+		}
+		
+		int ret = mysql_affected_rows((MYSQL *)mysql);
+		stackPushInt(ret);
+		return;
+	}
+	
+	stackError("gsc_mysql_affected_rows() expects 0 or 1 arguments");
+	stackPushUndefined();
 }
 
+// Modified: supports both mysql_store_result(handle) AND mysql_store_result()
 void gsc_mysql_store_result()
 {
-	int mysql;
-
-	if ( ! stackGetParams("i", &mysql))
+	int num_params = Scr_GetNumParam();
+	
+	// zk-style: mysql_store_result() - uses default connection
+	if (num_params == 0)
 	{
-		stackError("gsc_mysql_store_result() argument is undefined or has a wrong type");
-		stackPushUndefined();
+		if (default_zk_connection == NULL)
+		{
+			stackError("mysql_store_result() - no default connection");
+			stackPushUndefined();
+			return;
+		}
+		
+		MYSQL_RES *result = mysql_store_result(default_zk_connection);
+		stackPushInt((intptr_t)result);
 		return;
 	}
-
-	MYSQL_RES *result = mysql_store_result((MYSQL *)mysql);
-	stackPushInt((intptr_t)result);
+	
+	// Original rev style: mysql_store_result(handle)
+	if (num_params == 1)
+	{
+		int mysql;
+		if ( ! stackGetParams("i", &mysql))
+		{
+			stackError("gsc_mysql_store_result(handle)");
+			stackPushUndefined();
+			return;
+		}
+		
+		MYSQL_RES *result = mysql_store_result((MYSQL *)mysql);
+		stackPushInt((intptr_t)result);
+		return;
+	}
+	
+	stackError("gsc_mysql_store_result() expects 0 or 1 arguments");
+	stackPushUndefined();
 }
 
 void gsc_mysql_num_rows()
@@ -517,22 +671,58 @@ void gsc_mysql_free_result()
 	stackPushUndefined();
 }
 
+// Modified: supports both mysql_real_escape_string(handle, str) AND mysql_real_escape_string(str)
 void gsc_mysql_real_escape_string()
 {
-	int mysql;
-	const char *str;
-
-	if ( ! stackGetParams("is", &mysql, &str))
+	int num_params = Scr_GetNumParam();
+	
+	// zk-style: mysql_real_escape_string(str) - uses default connection
+	if (num_params == 1)
 	{
-		stackError("gsc_mysql_real_escape_string() one or more arguments is undefined or has a wrong type");
-		stackPushUndefined();
+		const char *str;
+		if ( ! stackGetParams("s", &str))
+		{
+			stackError("mysql_real_escape_string(str)");
+			stackPushUndefined();
+			return;
+		}
+		
+		if (default_zk_connection == NULL)
+		{
+			stackError("mysql_real_escape_string(str) - no default connection");
+			stackPushUndefined();
+			return;
+		}
+		
+		char *to = (char *) malloc(strlen(str) * 2 + 1);
+		mysql_real_escape_string(default_zk_connection, to, str, strlen(str));
+		stackPushString(to);
+		free(to);
 		return;
 	}
-
-	char *to = (char *) malloc(strlen(str) * 2 + 1);
-	mysql_real_escape_string((MYSQL *)mysql, to, str, strlen(str));
-	stackPushString(to);
-	free(to);
+	
+	// Original rev style: mysql_real_escape_string(handle, str)
+	if (num_params == 2)
+	{
+		int mysql;
+		const char *str;
+		
+		if ( ! stackGetParams("is", &mysql, &str))
+		{
+			stackError("gsc_mysql_real_escape_string(handle, str)");
+			stackPushUndefined();
+			return;
+		}
+		
+		char *to = (char *) malloc(strlen(str) * 2 + 1);
+		mysql_real_escape_string((MYSQL *)mysql, to, str, strlen(str));
+		stackPushString(to);
+		free(to);
+		return;
+	}
+	
+	stackError("gsc_mysql_real_escape_string() expects 1 or 2 arguments");
+	stackPushUndefined();
 }
 
 #endif
