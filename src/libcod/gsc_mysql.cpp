@@ -192,12 +192,9 @@ void gsc_mysql_async_getresult_and_free() //same as above, but takes the id of a
 		else
 			first_async_task = c->next;
 		if(c->save)
-		{
-			intptr_t ret = (intptr_t)c->result;
-			stackPushInt(ret);
-		}
+			stackPushPointer(c->result);
 		else
-			stackPushInt(0);
+			stackPushUndefined();
 		delete c;
 		Sys_LeaveCriticalSection(CRITSECT_MYSQL);
 		return;
@@ -260,7 +257,7 @@ void gsc_mysql_async_initializer()//returns array with mysql connection handlers
 			newconnection->prev = current;
 		}
 		current = newconnection;
-		stackPushInt((intptr_t)newconnection->connection);
+		stackPushPointer(newconnection->connection);
 		stackPushArrayLast();
 	}
 	threadid_t async_handler;
@@ -270,7 +267,7 @@ void gsc_mysql_async_initializer()//returns array with mysql connection handlers
 void gsc_mysql_init()
 {
 	MYSQL *my = mysql_init(NULL);
-	stackPushInt((intptr_t)my);
+	stackPushPointer(my);
 }
 
 void gsc_mysql_reuse_connection()
@@ -282,36 +279,37 @@ void gsc_mysql_reuse_connection()
 	}
 	else
 	{
-		stackPushInt((intptr_t)cod_mysql_connection);
+		stackPushPointer(cod_mysql_connection);
 		return;
 	}
 }
 
 void gsc_mysql_real_connect()
 {
-	intptr_t mysql, port;
+	void *mysql;
+	intptr_t port;
 	const char *host, *user, *pass, *db;
 
-	if ( ! stackGetParams("issssi", &mysql, &host, &user, &pass, &db, &port))
+	if ( ! stackGetParams("pssssi", &mysql, &host, &user, &pass, &db, &port))
 	{
 		stackError("gsc_mysql_real_connect() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();
 		return;
 	}
 
-	mysql = (intptr_t)mysql_real_connect((MYSQL *)mysql, host, user, pass, db, port, NULL, 0);
+	mysql = mysql_real_connect((MYSQL *)mysql, host, user, pass, db, port, NULL, 0);
 	bool reconnect = true;
 	mysql_options((MYSQL*)mysql, MYSQL_OPT_RECONNECT, &reconnect);
 	if(cod_mysql_connection == NULL)
 		cod_mysql_connection = (MYSQL*) mysql;
-	stackPushInt(mysql);
+	stackPushPointer(mysql);
 }
 
 void gsc_mysql_close()
 {
-	int mysql;
+	void *mysql;
 
-	if ( ! stackGetParams("i", &mysql))
+	if ( ! stackGetParams("p", &mysql))
 	{
 		stackError("gsc_mysql_close() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -324,10 +322,10 @@ void gsc_mysql_close()
 
 void gsc_mysql_query()
 {
-	int mysql;
+	void *mysql;
 	const char *query;
 
-	if ( ! stackGetParams("is", &mysql, &query))
+	if ( ! stackGetParams("ps", &mysql, &query))
 	{
 		stackError("gsc_mysql_query() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();
@@ -340,9 +338,9 @@ void gsc_mysql_query()
 
 void gsc_mysql_errno()
 {
-	int mysql;
+	void *mysql;
 
-	if ( ! stackGetParams("i", &mysql))
+	if ( ! stackGetParams("p", &mysql))
 	{
 		stackError("gsc_mysql_errno() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -355,9 +353,9 @@ void gsc_mysql_errno()
 
 void gsc_mysql_error()
 {
-	int mysql;
+	void *mysql;
 
-	if ( ! stackGetParams("i", &mysql))
+	if ( ! stackGetParams("p", &mysql))
 	{
 		stackError("gsc_mysql_error() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -370,9 +368,9 @@ void gsc_mysql_error()
 
 void gsc_mysql_affected_rows()
 {
-	int mysql;
+	void *mysql;
 
-	if ( ! stackGetParams("i", &mysql))
+	if ( ! stackGetParams("p", &mysql))
 	{
 		stackError("gsc_mysql_affected_rows() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -385,9 +383,9 @@ void gsc_mysql_affected_rows()
 
 void gsc_mysql_store_result()
 {
-	int mysql;
+	void *mysql;
 
-	if ( ! stackGetParams("i", &mysql))
+	if ( ! stackGetParams("p", &mysql))
 	{
 		stackError("gsc_mysql_store_result() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -395,14 +393,14 @@ void gsc_mysql_store_result()
 	}
 
 	MYSQL_RES *result = mysql_store_result((MYSQL *)mysql);
-	stackPushInt((intptr_t)result);
+	stackPushPointer(result);
 }
 
 void gsc_mysql_num_rows()
 {
-	int result;
+	void *result;
 
-	if ( ! stackGetParams("i", &result))
+	if ( ! stackGetParams("p", &result))
 	{
 		stackError("gsc_mysql_num_rows() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -415,9 +413,9 @@ void gsc_mysql_num_rows()
 
 void gsc_mysql_num_fields()
 {
-	int result;
+	void *result;
 
-	if ( ! stackGetParams("i", &result))
+	if ( ! stackGetParams("p", &result))
 	{
 		stackError("gsc_mysql_num_fields() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -430,10 +428,10 @@ void gsc_mysql_num_fields()
 
 void gsc_mysql_field_seek()
 {
-	int result;
+	void *result;
 	int offset;
 
-	if ( ! stackGetParams("ii", &result, &offset))
+	if ( ! stackGetParams("pi", &result, &offset))
 	{
 		stackError("gsc_mysql_field_seek() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();
@@ -446,9 +444,9 @@ void gsc_mysql_field_seek()
 
 void gsc_mysql_fetch_field()
 {
-	int result;
+	void *result;
 
-	if ( ! stackGetParams("i", &result))
+	if ( ! stackGetParams("p", &result))
 	{
 		stackError("gsc_mysql_fetch_field() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -467,9 +465,9 @@ void gsc_mysql_fetch_field()
 
 void gsc_mysql_fetch_row()
 {
-	int result;
+	void *result;
 
-	if ( ! stackGetParams("i", &result))
+	if ( ! stackGetParams("p", &result))
 	{
 		stackError("gsc_mysql_fetch_row() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -499,9 +497,9 @@ void gsc_mysql_fetch_row()
 
 void gsc_mysql_free_result()
 {
-	int result;
+	void *result;
 
-	if ( ! stackGetParams("i", &result))
+	if ( ! stackGetParams("p", &result))
 	{
 		stackError("gsc_mysql_free_result() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -519,10 +517,10 @@ void gsc_mysql_free_result()
 
 void gsc_mysql_real_escape_string()
 {
-	int mysql;
+	void *mysql;
 	const char *str;
 
-	if ( ! stackGetParams("is", &mysql, &str))
+	if ( ! stackGetParams("ps", &mysql, &str))
 	{
 		stackError("gsc_mysql_real_escape_string() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();

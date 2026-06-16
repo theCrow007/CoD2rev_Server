@@ -215,6 +215,7 @@ enum var_type_t
 	VAR_VECTOR,
 	VAR_FLOAT,
 	VAR_INTEGER,
+	VAR_RAWPOINTER, // libcod: raw C pointer (64-bit safe handle storage)
 	VAR_CODEPOS,
 	VAR_PRECODEPOS,
 	VAR_FUNCTION,
@@ -938,6 +939,7 @@ inline const char *var_typename[] =
 	"vector",
 	"float",
 	"int",
+	"raw pointer",
 	"codepos",
 	"precodepos",
 	"function",
@@ -966,6 +968,7 @@ unsigned int Scr_GetNumParam();
 void Scr_AddUndefined();
 void Scr_AddBool(bool value);
 void Scr_AddInt(int value);
+void Scr_AddPointer(void *value);
 void Scr_AddFloat(float value);
 void Scr_AddAnim(scr_anim_s value);
 void Scr_AddObject(unsigned int id);
@@ -982,6 +985,7 @@ scr_entref_t Scr_GetEntityRef( unsigned int index );
 unsigned short Scr_ExecEntThreadNum(int entnum, int classnum, int handle, unsigned int paramcount);
 void Scr_FreeThread(unsigned short handle);
 int Scr_GetInt(unsigned int index);
+void *Scr_GetPointer(unsigned int index);
 float Scr_GetFloat(unsigned int index);
 unsigned int Scr_GetConstString(unsigned int index);
 unsigned int Scr_GetConstStringIncludeNull(unsigned int index);
@@ -1408,3 +1412,7 @@ void Scr_VM_Init();
 void VM_SetTime();
 void VM_Resume(unsigned int timeId);
 unsigned int VM_Execute(const char *pos, unsigned int localId, unsigned int localVarCount, VariableValue *top, VariableValue *startTop);
+void Scr_DumpScriptVariables( bool spreadsheet, bool summary, bool total, 
+                              bool functionSummary, bool lineSort, 
+                              const char *fileName, const char *functionName, 
+                              int minCount );

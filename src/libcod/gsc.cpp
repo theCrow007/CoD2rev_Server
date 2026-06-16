@@ -703,6 +703,17 @@ int stackGetParams(const char *params, ...)
 			break;
 		}
 
+		case 'p':
+		{
+			void **tmp = va_arg(args, void **);
+			if ( ! stackGetParamPointer(i, tmp))
+			{
+				Com_DPrintf("\nstackGetParams() Param %i is not a pointer\n", i);
+				errors++;
+			}
+			break;
+		}
+
 		case 'v':
 		{
 			float *tmp = va_arg(args, float *);
@@ -756,6 +767,22 @@ int stackGetParams(const char *params, ...)
 
 	va_end(args);
 	return errors == 0; // success if no errors
+}
+
+int stackGetParamPointer(int param, void **value)
+{
+	if (param >= Scr_GetNumParam())
+		return 0;
+
+	VariableValue *var;
+	var = Scr_GetValue(param);
+
+	if (var->type != STACK_RAWPOINTER)
+		return 0;
+
+	*value = (void *)var->u.pointerValue;
+
+	return 1;
 }
 
 int stackGetParamInt(int param, int *value)

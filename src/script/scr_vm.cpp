@@ -633,6 +633,32 @@ int Scr_GetInt( unsigned int index )
 
 /*
 ==============
+Scr_GetPointer
+==============
+*/
+void *Scr_GetPointer( unsigned int index )
+{
+	VariableValue *value;
+
+	if ( index >= scrVmPub.outparamcount )
+	{
+		Scr_Error(va("parameter %d does not exist", index + 1));
+		return NULL;
+	}
+
+	value = Scr_GetStackValue(index);
+
+	if ( value->type != VAR_RAWPOINTER )
+	{
+		scrVarPub.error_index = index + 1;
+		Scr_Error(va("type %s is not a pointer", var_typename[value->type]));
+	}
+
+	return (void *)value->u.pointerValue;
+}
+
+/*
+==============
 Scr_ObjectError
 ==============
 */
@@ -1495,6 +1521,27 @@ void Scr_AddInt( int value )
 
 	scrVmPub.top->type = VAR_INTEGER;
 	scrVmPub.top->u.intValue = value;
+}
+
+/*
+==============
+Scr_AddPointer
+==============
+*/
+void Scr_AddPointer( void *value )
+{
+	IncInParam();
+
+	// A NULL C pointer becomes GSC undefined, so isDefined() is the natural validity
+	// test for handle-returning builtins (mysql_init/connect/store_result etc).
+	if ( value == NULL )
+	{
+		scrVmPub.top->type = VAR_UNDEFINED;
+		return;
+	}
+
+	scrVmPub.top->type = VAR_RAWPOINTER;
+	scrVmPub.top->u.pointerValue = (uintptr_t)value;
 }
 
 /*

@@ -80,27 +80,29 @@
 #define STACK_VECTOR 4
 #define STACK_FLOAT 5
 #define STACK_INT 6
-#define STACK_CODEPOS 7
-#define STACK_PRECODEPOS 8
-#define STACK_FUNCTION 9
-#define STACK_STACK 10
-#define STACK_ANIMATION 11
-#define STACK_DEVELOPER_CODEPOS 12
-#define STACK_INCLUDE_CODEPOS 13
-#define STACK_THREAD_LIST 14
-#define STACK_THREAD_1 15
-#define STACK_THREAD_2 16
-#define STACK_THREAD_3 17
-#define STACK_THREAD_4 18
-#define STACK_STRUCT 19
-#define STACK_REMOVED_ENTITY 20
-#define STACK_ENTITY 21
-#define STACK_ARRAY 22
-#define STACK_REMOVED_THREAD 23
+#define STACK_RAWPOINTER 7
+#define STACK_CODEPOS 8
+#define STACK_PRECODEPOS 9
+#define STACK_FUNCTION 10
+#define STACK_STACK 11
+#define STACK_ANIMATION 12
+#define STACK_DEVELOPER_CODEPOS 13
+#define STACK_INCLUDE_CODEPOS 14
+#define STACK_THREAD_LIST 15
+#define STACK_THREAD_1 16
+#define STACK_THREAD_2 17
+#define STACK_THREAD_3 18
+#define STACK_THREAD_4 19
+#define STACK_STRUCT 20
+#define STACK_REMOVED_ENTITY 21
+#define STACK_ENTITY 22
+#define STACK_ARRAY 23
+#define STACK_REMOVED_THREAD 24
 
 #define stackPushUndefined Scr_AddUndefined
 #define stackPushBool Scr_AddBool
 #define stackPushInt Scr_AddInt
+#define stackPushPointer Scr_AddPointer
 #define stackPushFloat Scr_AddFloat
 #define stackPushString Scr_AddString
 #define stackPushVector Scr_AddVector
@@ -120,6 +122,7 @@ int stackGetParams(const char *params, ...);
 void stackError(const char *format, ...);
 
 int stackGetParamInt(int param, int *value);
+int stackGetParamPointer(int param, void **value);
 int stackGetParamFunction(int param, int *value);
 int stackGetParamString(int param, const char **value);
 int stackGetParamConstString(int param, unsigned int *value);

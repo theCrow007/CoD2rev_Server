@@ -646,7 +646,35 @@ Scr_DumpScriptVariables
 */
 void Scr_DumpScriptVariables( bool spreadsheet, bool summary, bool total, bool functionSummary, bool lineSort, const char *fileName, const char *functionName, int minCount )
 {
-	UNIMPLEMENTED(__FUNCTION__);
+	// libcod: summary implementation (replaces the original UNIMPLEMENTED stub) so an
+	// "exceeded maximum number of script variables" overflow prints what is consuming the pool.
+	unsigned int counts[VAR_COUNT];
+	unsigned int used = 0;
+	unsigned int id;
+	unsigned int t;
+
+	memset( counts, 0, sizeof( counts ) );
+
+	for ( id = 1; id < VARIABLELIST_CHILD_SIZE; id++ )
+	{
+		if ( ( scrVarGlob.variableList[id].w.status & VAR_STAT_MASK ) == VAR_STAT_FREE )
+			continue;
+
+		t = scrVarGlob.variableList[id].w.type & VAR_MASK;
+		if ( t < VAR_COUNT )
+			counts[t]++;
+		used++;
+	}
+
+	Com_Printf( "---- script variable usage ----\n" );
+	Com_Printf( "in use: %u (parent cap %u, child slots %u)\n",
+	            used, (unsigned)VARIABLELIST_PARENT_SIZE, (unsigned)VARIABLELIST_CHILD_SIZE );
+	for ( t = 0; t < VAR_COUNT; t++ )
+	{
+		if ( counts[t] )
+			Com_Printf( "  %-18s %u\n", var_typename[t], counts[t] );
+	}
+	Com_Printf( "-------------------------------\n" );
 }
 
 /*
