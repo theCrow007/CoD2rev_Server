@@ -4,8 +4,29 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: 200 of 221 GSC functions** (21 zk names remain) in the case-insensitive delta (functions zk has that rev
-lacks), plus the custom-state infrastructure and 25 native engine hooks. Every round compiles and
+**Progress: ~206 of 221 GSC functions** (15 zk names remain — accurate recount; the 221 denominator is approximate) in the case-insensitive delta (functions zk has that rev
+
+## 64-bit pointer correctness (VAR_RAWPOINTER) — x64 handle-truncation fix
+libcod stored real C pointers (`MYSQL*`, `MYSQL_RES*`, `sqlite3*`, raw `malloc` addresses, a `msg_t*`) in 32-bit GSC ints via `stackPushInt((intptr_t)ptr)` / `stackGetParams("i")`, truncating 64-bit pointers -> segfault on x64 (x86 was fine because pointers fit). Fixed at the VM level per IzNoGoD's suggestion: a dedicated scalar pointer type, not a handle table.
+
+**VM type (`src/script/`):**
+- **script_public.h**: new `VAR_RAWPOINTER` in `var_type_t`, inserted after `VAR_INTEGER` (scalar band — outside `VAR_BEGIN_REF..VAR_END_REF` and the object/dead ranges, so `AddRefToValue`/`RemoveRefToValue`/GC treat it as a no-op scalar, confirmed by reading those switch statements). Matching `"raw pointer"` in the positional `var_typename[]`. Added a dedicated **`void *rawPointerValue`** member to `VariableUnion` (overlays the existing 8-byte `pointerValue`; union size + `static_assert` unchanged) so the push/get are cast-free. NB: do **not** retype the existing `pointerValue` (uintptr_t) to `void*` — it is used as an integer id for array indices/entity ids in ~20 places.
+- **scr_vm.cpp**: `Scr_AddPointer(void*)` and `Scr_GetPointer(index)` mirroring `Scr_AddInt`/`Scr_GetInt`. `Scr_AddPointer(NULL)` pushes **VAR_UNDEFINED**, so `isDefined()` is the natural validity test for handle-returning builtins (mysql_init/connect/store_result, sqlite_open, memory_malloc, async results).
+- **gsc.hpp / gsc.cpp**: `#define stackPushPointer Scr_AddPointer`; a `'p'` code in `stackGetParams` + `stackGetParamPointer`. The `STACK_*` numeric mirror in gsc.hpp was resynced (added `STACK_RAWPOINTER 7`, bumped `STACK_CODEPOS..STACK_REMOVED_THREAD` +1) to track the shifted enum. `var_type_t` is runtime-only (CoD2 compiles .gsc text at load; no on-disk bytecode stores tags), so shifting later enum values is safe.
+
+**Bindings converted to the pointer type (handles cross GSC as `VAR_RAWPOINTER`, ids/return-codes stay int):**
+- `gsc_mysql.cpp` (variant 1) + `gsc_mysql_voron.cpp` (variant 2) — all `MYSQL*`/`MYSQL_RES*` handles; the connection-pool id path and async task ids stay int. (Includes the async `getresult_and_free` result, which used an intermediate `intptr_t ret` and was easy to miss.)
+- `gsc_sqlite.cpp` — the `sqlite3*` db handle (statements/store are C-internal).
+- `gsc_memory.cpp` — `malloc` addresses + byte-buffer handles; `binarybuffer.address` widened `int`->`intptr_t`.
+- `gsc_utils.cpp` — `gsc_utils_remotecommand()` `msg_t*` param.
+
+**Whole-tree `-Wint-to-pointer-cast` audit: clean.** Core engine/VM/game/server produced zero warnings; the only engine site was the benign `scope` sentinel in `scr_compiler.cpp` (fixed with an explicit `(intptr_t)` widen — it stores a 32-bit offset, not a real pointer). All genuine truncations were in the libcod modules above and are fixed. x64 builds warning-free.
+
+**Diagnostics:** implemented the stubbed `Scr_DumpScriptVariables` (was `UNIMPLEMENTED`) in `scr_variable.cpp` as a summary — on an "exceeded maximum number of script variables" overflow it now prints live-variable counts by type, so the GSC variable-pool budget (cap `VARIABLELIST_PARENT_SIZE` = 0x8000) can be diagnosed (e.g. a large result set materialized into a GSC array via `getRows`).
+
+**GSC-side guidance (`_mysql.gsc`):** with NULL->undefined, use `isDefined(handle)` as the validity check; the old `is_valid_pointer()` stringify hack must be removed (a `VAR_RAWPOINTER` cannot be cast to string — `"" + handle` errors). Known latent caveat (not a cast warning, left as-is): `binarybuffer` `'s'` type stores an 8-byte `char*` but advances `pos += 4` — wrong on x64 if used.
+
+lacks), plus the custom-state infrastructure and ~34 native engine hooks. Every round compiles and
 the full binary relinks clean.
 
 ---
@@ -229,6 +250,15 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 | `src/bgame/bg_jump.cpp` | per-player jump height + jump slowdown overrides (dvar reads → accessors) |
 | `src/server/sv_snapshot_mp.cpp` (also) | talker-icon fake-voice injection in `SV_SendClientMessages` |
 | `src/server/sv_snapshot_mp.cpp` | forced snapshot ents in `SV_BuildClientSnapshot`; plus original: per-client `EF_NONSOLID_BMODEL` in `SV_EmitPacketEntities` |
+| `src/server/sv_client_mp.cpp` | command-gate (`hook_ClientCommand` already wired) + `setNextTestClientName` in `SV_AddTestClient` |
+| `src/server/sv_main_pc_mp.cpp` | rcon command-gate (`CodeCallback_RemoteCommand`) in `SVC_RemoteCommand` |
+| `src/server/sv_ccmds_mp.cpp` | `setConsolePrefix` overrides the console say/tell sender in `SV_ConSay_f`/`SV_ConTell_f` |
+| `src/game/player_use_mp.cpp` (also) | `setActivateOnUseButtonRelease` release-branch in `Player_UpdateActivate` |
+| `src/script/script_public.h` | `VAR_RAWPOINTER` type + `var_typename` + `void *rawPointerValue` union member + decls |
+| `src/script/scr_vm.cpp` | `Scr_AddPointer`/`Scr_GetPointer` (NULL->undefined) |
+| `src/script/scr_variable.cpp` | `Scr_DumpScriptVariables` summary implementation |
+| `src/script/scr_compiler.cpp` | benign `scope` int->ptr cast widened to `(intptr_t)` |
+| `src/libcod/gsc_mysql.cpp`, `gsc_mysql_voron.cpp`, `gsc_sqlite.cpp`, `gsc_memory.cpp`, `gsc_utils.cpp` | x64 pointer-handle conversion (VAR_RAWPOINTER / widened field) |
 
 ---
 
@@ -246,16 +276,13 @@ forward-declaration, keeping the struct internal to libcod and each game/server 
 
 ## 7. Known issues / deferred
 
-### gsc_memory.cpp x64 pointer-width warnings (rev's own file)
-6 sites store addresses in `int` → real truncation on x64 (GSC ints are 32-bit, can't hold 64-bit
-pointers). `gsc_utils.cpp:825` is a *different*, benign float-bits pun (not affected). Two fix
-options for the end-of-port cleanup pass:
-1. Gate the module off on x64 (`LIBCOD_COMPILE_MEMORY=0`).
-2. **Handle-table redesign** (recommended): `malloc` returns a small int handle indexing a table of
-   real 64-bit pointers; `free`/`int_get`/`int_set`/`memset` look up the pointer.
-
-Casting through `intptr_t` only silences the warning — it does not fix the truncation. New zk ports
-use x64-safe patterns to avoid adding instances.
+### x64 pointer-truncation — RESOLVED (see "64-bit pointer correctness" section above)
+All libcod modules that passed real pointers through GSC as ints (`gsc_memory`, `gsc_mysql`,
+`gsc_mysql_voron`, `gsc_sqlite`, `gsc_utils` remotecommand) now use the `VAR_RAWPOINTER` type
+(or a widened `intptr_t` field for `binarybuffer.address`). A whole-tree `-Wint-to-pointer-cast`
+sweep is clean; the core engine had no real truncations (only the benign `scope` sentinel, fixed).
+Remaining latent item: `binarybuffer` `'s'` type advances `pos += 4` for an 8-byte pointer — a
+buffer-format/logic issue, not a cast; left as-is unless a mod uses `binarybuffer_write(bb,"s",..)`.
 
 ### Deferred features (need deeper work or subsystems)
 - **gsc_bots** — all bot delta functions need zk's bot-usercmd hook / testclient state.
@@ -286,7 +313,7 @@ use x64-safe patterns to avoid adding instances.
 - **Snapshot forcing** — DONE: `addEntToSnapshots`/`removeEntFromSnapshots`/`getNumberOfEntsInSnapshot` via `SV_BuildClientSnapshot` hook (non-cached path only; the cached/anti-lag archive path and zk's `sv_autoAddSnapshotEntities` "forced-only" mode are intentionally not replicated).
 - **VoroN MySQL variant 2** — PORTED: `gsc_mysql_voron.cpp`/`.hpp` added (31 functions; sync + async + 2 entity-query methods), registered under `LIBCOD_COMPILE_MYSQL_VORON`, builds with `MYSQL_VARIANT=2` (needs the user's `libmysqlclient`). Base MySQL (variant 1) was already present in upstream. Compile-verified; not link-tested in sandbox (no client lib).
 - **gclient setters/readers blocked on missing rev symbols** — `setOriginAndAngles`
-  (`SetClientViewAngles`), `isRechambering`/`setRechambering`/`getCurrentWeaponSlot` (rev lacks `GetCurrentWeaponSlot`),
+  (`SetClientViewAngles`), `isRechambering`/`setRechambering`/`getCurrentWeaponSlot` — **DONE**: rev has `BG_GetWeaponSlotForName`/`BG_GetWeaponSlotNameForIndex`/`BG_GetStackSlotForWeapon`/`PM_Weapon_FinishRechamber` natively + `playerState.weaponslots`/`weaponrechamber`; `GetCurrentWeaponSlot` derived via `BG_GetStackSlotForWeapon`. No stock-binary offsets needed,
   `isUseTouching` (`PMF_SPECTATING` differs).
 - **client_t blocked items** — `playSoundFile` (custom sound subsystem). `setHoldingWeaponDown`
   is ported (field un-trimmed, setter, `PM_Weapon` + cursor-hint hooks); deferred only is its
@@ -323,13 +350,6 @@ trivial rebinds.
 
 ---
 
-## 9. How to apply (general pattern each round)
-
-1. `git checkout` the rev source files being re-patched.
-2. `cp` the updated `gsc_zk_*` module files into `src/libcod/`.
-3. `git apply` the relevant `*.patch` files.
-4. `./build.sh nomysql` (or your MySQL variant once the client lib is in place).
-5. Functional test in-game.
 
 All deliverables are in the outputs folder: the 6 `gsc_zk_*` module pairs, `gsc_zk_custom_state`,
 and per-file patches for `gsc.cpp` and each modified rev source file.
