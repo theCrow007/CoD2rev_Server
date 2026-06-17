@@ -921,9 +921,9 @@ void gsc_utils_remove_file()
 void gsc_utils_remotecommand()
 {
 	const char *sFrom;
-	int pointerMsg;
+	void *pointerMsg;
 
-	if (!stackGetParams("si", &sFrom, &pointerMsg))
+	if (!stackGetParams("sp", &sFrom, &pointerMsg))
 	{
 		stackError("gsc_utils_remotecommand() one or more arguments is undefined or has a wrong type");
 		return;

@@ -2992,7 +2992,7 @@ void EmitFunction(sval_u func, sval_u sourcePos)
 		}
 	}
 
-	EmitCodepos((const char *)scope);
+	EmitCodepos((const char *)(intptr_t)scope);
 
 	countId = GetVariable(threadId, 0);
 	count = Scr_EvalVariable(countId);

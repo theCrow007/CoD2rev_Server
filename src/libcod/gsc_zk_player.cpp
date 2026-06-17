@@ -3176,4 +3176,125 @@ void gsc_zk_player_processclientcommand(scr_entref_t ref)
 	stackPushBool(qtrue);
 }
 
+// ---- weapon-slot / rechamber (all backed by native rev symbols; no byte-patching) ----
+extern "C++" {
+	int BG_GetWeaponSlotForName(const char *name);
+	const char *BG_GetWeaponSlotNameForIndex(int iSlot);
+	int BG_GetStackSlotForWeapon(const playerState_t *pPS, int iWeaponIndex, unsigned int preferedSlot);
+	void PM_StartWeaponAnim(playerState_t *ps, int anim);
+	void PM_ContinueWeaponAnim(playerState_t *ps, int anim);
+}
+
+// Which stack slot (none/primary/primaryb) the player's current weapon occupies.
+static int zk_GetCurrentWeaponSlot(playerState_t *ps)
+{
+	return BG_GetStackSlotForWeapon(ps, ps->weapon, BG_GetWeaponDef(ps->weapon)->weaponSlot);
+}
+
+void gsc_zk_player_getcurrentweaponslot(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getcurrentweaponslot() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	playerState_t *ps = SV_GameClientNum(id);
+	stackPushString(BG_GetWeaponSlotNameForIndex(zk_GetCurrentWeaponSlot(ps)));
+}
+
+void gsc_zk_player_isrechambering(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_isrechambering() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	playerState_t *ps = SV_GameClientNum(id);
+	int slot;
+
+	if ( !Scr_GetNumParam() )
+		slot = zk_GetCurrentWeaponSlot(ps);
+	else
+		slot = BG_GetWeaponSlotForName(SL_ConvertToString(Scr_GetConstString(0)));
+
+	if ( slot <= SLOT_NONE || slot >= SLOT_COUNT )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	int weaponIndex = (unsigned char)ps->weaponslots[slot];
+	stackPushBool(Com_BitCheck(ps->weaponrechamber, weaponIndex) ? qtrue : qfalse);
+}
+
+void gsc_zk_player_setrechambering(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_setrechambering() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	playerState_t *ps = SV_GameClientNum(id);
+	int args = Scr_GetNumParam();
+	qboolean flag = Scr_GetInt(0);
+	int currentSlot = zk_GetCurrentWeaponSlot(ps);
+	int selectedSlot = currentSlot;
+
+	if ( args > 1 )
+		selectedSlot = BG_GetWeaponSlotForName(SL_ConvertToString(Scr_GetConstString(1)));
+
+	if ( selectedSlot <= SLOT_NONE || selectedSlot >= SLOT_COUNT )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	int weaponIndex = (unsigned char)ps->weaponslots[selectedSlot];
+	WeaponDef *weapDef = BG_GetWeaponDef(weaponIndex);
+
+	if ( !weapDef->boltAction )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
+	if ( flag )
+	{
+		Com_BitSet(ps->weaponrechamber, weaponIndex);
+		if ( currentSlot == selectedSlot )
+		{
+			if ( 0.75 < ps->fWeaponPosFrac )
+				PM_StartWeaponAnim(ps, WEAP_ADS_RECHAMBER);
+			else
+				PM_StartWeaponAnim(ps, WEAP_RECHAMBER);
+
+			ps->weaponstate = WEAPON_RECHAMBERING;
+			ps->weaponTime = weapDef->rechamberTime;
+			if ( weapDef->rechamberBoltTime == 0 || weapDef->rechamberTime <= weapDef->rechamberBoltTime )
+				ps->weaponDelay = 1;
+			else
+				ps->weaponDelay = weapDef->rechamberBoltTime;
+
+			PM_AddEvent(ps, EV_RECHAMBER_WEAPON);
+		}
+	}
+	else
+	{
+		Com_BitClear(ps->weaponrechamber, weaponIndex);
+		if ( currentSlot == selectedSlot )
+		{
+			PM_ContinueWeaponAnim(ps, WEAP_IDLE);
+			ps->weaponstate = WEAPON_READY;
+		}
+	}
+
+	stackPushBool(qtrue);
+}
+
 #endif

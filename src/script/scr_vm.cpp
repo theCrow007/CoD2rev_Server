@@ -654,7 +654,7 @@ void *Scr_GetPointer( unsigned int index )
 		Scr_Error(va("type %s is not a pointer", var_typename[value->type]));
 	}
 
-	return (void *)value->u.pointerValue;
+	return value->u.rawPointerValue;
 }
 
 /*
@@ -1541,7 +1541,7 @@ void Scr_AddPointer( void *value )
 	}
 
 	scrVmPub.top->type = VAR_RAWPOINTER;
-	scrVmPub.top->u.pointerValue = (uintptr_t)value;
+	scrVmPub.top->u.rawPointerValue = value;
 }
 
 /*

@@ -13,29 +13,29 @@ void gsc_memory_malloc()
 		return;
 	}
 
-	stackPushInt((intptr_t)malloc(bytes));
+	stackPushPointer(malloc(bytes));
 }
 
 void gsc_memory_free()
 {
-	int memory;
+	void *memory;
 
-	if ( ! stackGetParams("i", &memory))
+	if ( ! stackGetParams("p", &memory))
 	{
 		stackError("gsc_memory_free() argument is undefined or has a wrong type");
 		stackPushUndefined();
 		return;
 	}
 
-	free((void*)memory);
+	free(memory);
 	stackPushInt(0);
 }
 
 void gsc_memory_int_get()
 {
-	int memory;
+	void *memory;
 
-	if ( ! stackGetParams("i", &memory))
+	if ( ! stackGetParams("p", &memory))
 	{
 		stackError("gsc_memory_int_get() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -47,9 +47,10 @@ void gsc_memory_int_get()
 
 void gsc_memory_int_set()
 {
-	int memory, value;
+	void *memory;
+	int value;
 
-	if ( ! stackGetParams("ii", &memory, &value))
+	if ( ! stackGetParams("pi", &memory, &value))
 	{
 		stackError("gsc_memory_int_set() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();
@@ -62,47 +63,48 @@ void gsc_memory_int_set()
 
 void gsc_memory_memset()
 {
-	int memory, value, bytes;
+	void *memory;
+	int value, bytes;
 
-	if ( ! stackGetParams("iii", &memory, &value, &bytes))
+	if ( ! stackGetParams("pii", &memory, &value, &bytes))
 	{
 		stackError("gsc_memory_memset() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();
 		return;
 	}
 
-	memset((void*)memory, value, bytes);
+	memset(memory, value, bytes);
 	stackPushInt(1);
 }
 
 #include <vector>
 struct binarybuffer
 {
-	int address;
+	intptr_t address;
 	int pos;
 	std::vector<char *> *strings;
 };
 
 void gsc_binarybuffer_new()
 {
-	int address;
-	if ( ! stackGetParams("i", &address))
+	void *address;
+	if ( ! stackGetParams("p", &address))
 	{
 		stackError("gsc_binarybuffer_new() argument is undefined or has a wrong type");
 		stackPushUndefined();
 		return;
 	}
 	struct binarybuffer *bb = (struct binarybuffer *)malloc(sizeof(struct binarybuffer));
-	bb->address = address;
+	bb->address = (intptr_t)address;
 	bb->pos = 0;
 	bb->strings = new std::vector<char *>();
-	stackPushInt((intptr_t)bb);
+	stackPushPointer(bb);
 }
 
 void gsc_binarybuffer_free()
 {
 	struct binarybuffer *bb;
-	if ( ! stackGetParams("i", &bb))
+	if ( ! stackGetParams("p", &bb))
 	{
 		stackError("gsc_binarybuffer_free() argument is undefined or has a wrong type");
 		stackPushUndefined();
@@ -119,7 +121,7 @@ void gsc_binarybuffer_seek()
 {
 	struct binarybuffer *bb;
 	int pos;
-	if ( ! stackGetParams("ii", &bb, &pos))
+	if ( ! stackGetParams("pi", &bb, &pos))
 	{
 		stackError("gsc_binarybuffer_seek() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();
@@ -133,7 +135,7 @@ void gsc_binarybuffer_write()
 {
 	struct binarybuffer *bb;
 	const char *type;
-	if ( ! stackGetParams("is", &bb, &type))
+	if ( ! stackGetParams("ps", &bb, &type))
 	{
 		stackError("gsc_binarybuffer_write() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();
@@ -202,7 +204,7 @@ void gsc_binarybuffer_read()
 {
 	struct binarybuffer *bb;
 	const char *type;
-	if ( ! stackGetParams("is", &bb, &type))
+	if ( ! stackGetParams("ps", &bb, &type))
 	{
 		stackError("gsc_binarybuffer_read() one or more arguments is undefined or has a wrong type");
 		stackPushUndefined();

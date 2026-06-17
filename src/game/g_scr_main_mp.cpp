@@ -4433,7 +4433,9 @@ void GScr_CloseFile()
 		return;
 	}
 
-	assert(((level.openScriptIOFileHandles[filenum] != 0) && (level.openScriptIOFileBuffers[filenum] != NULL)));
+	// libcod: write/append files have a handle but no buffer; read files have a buffer but
+	// handle < 0. The original AND assert wrongly fired when closing any write/append file.
+	assert(((level.openScriptIOFileHandles[filenum] > 0) || (level.openScriptIOFileBuffers[filenum] != NULL)));
 
 	if ( level.openScriptIOFileHandles[filenum] > 0 )
 	{

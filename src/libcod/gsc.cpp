@@ -545,6 +545,9 @@ scr_method_t scriptMethods[] =
 	{"playFxForPlayer", gsc_zk_player_playfxforplayer, 0},
 	{"setActivateOnUseButtonRelease", gsc_zk_player_setactivateonusebuttonrelease, 0},
 	{"processClientCommand", gsc_zk_player_processclientcommand, 0},
+	{"getCurrentWeaponSlot", gsc_zk_player_getcurrentweaponslot, 0},
+	{"isRechambering", gsc_zk_player_isrechambering, 0},
+	{"setRechambering", gsc_zk_player_setrechambering, 0},
 	{"spawnGrenade", gsc_zk_weapons_spawngrenade, 0},
 	{"enableBulletImpacts", gsc_zk_player_enablebulletimpacts, 0},
 	{"disableBulletImpacts", gsc_zk_player_disablebulletimpacts, 0},
@@ -780,7 +783,7 @@ int stackGetParamPointer(int param, void **value)
 	if (var->type != STACK_RAWPOINTER)
 		return 0;
 
-	*value = (void *)var->u.pointerValue;
+	*value = var->u.rawPointerValue;
 
 	return 1;
 }

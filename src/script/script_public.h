@@ -76,6 +76,7 @@ union VariableUnion
 	const float *vectorValue;
 	const char *codePosValue;
 	uintptr_t pointerValue;
+	void *rawPointerValue;
 	VariableStackBuffer *stackValue;
 	unsigned int entityOffset;
 };
@@ -1412,7 +1413,3 @@ void Scr_VM_Init();
 void VM_SetTime();
 void VM_Resume(unsigned int timeId);
 unsigned int VM_Execute(const char *pos, unsigned int localId, unsigned int localVarCount, VariableValue *top, VariableValue *startTop);
-void Scr_DumpScriptVariables( bool spreadsheet, bool summary, bool total, 
-                              bool functionSummary, bool lineSort, 
-                              const char *fileName, const char *functionName, 
-                              int minCount );

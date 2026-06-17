@@ -140,4 +140,7 @@ void gsc_zk_player_setbulletmodel(scr_entref_t ref);
 void gsc_zk_player_playfxforplayer(scr_entref_t ref);
 void gsc_zk_player_setactivateonusebuttonrelease(scr_entref_t ref);
 void gsc_zk_player_processclientcommand(scr_entref_t ref);
+void gsc_zk_player_getcurrentweaponslot(scr_entref_t ref);
+void gsc_zk_player_isrechambering(scr_entref_t ref);
+void gsc_zk_player_setrechambering(scr_entref_t ref);
 #endif
