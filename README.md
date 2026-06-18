@@ -4,10 +4,10 @@ Porting the **ibuddieat/zk_libcod** GSC feature set onto the **callofduty2x/CoD2
 codebase. Target build: **x64**, `nomysql` validated end-to-end (MySQL variant 1 builds once a
 client lib is supplied).
 
-**Progress: ~206 of 221 GSC functions** (15 zk names remain — accurate recount; the 221 denominator is approximate) in the case-insensitive delta (functions zk has that rev
+**Progress: ~207 of 221 GSC functions** (14 zk names remain — accurate recount; the 221 denominator is approximate) in the case-insensitive delta (functions zk has that rev
 
 ## 64-bit pointer correctness (VAR_RAWPOINTER) — x64 handle-truncation fix
-libcod stored real C pointers (`MYSQL*`, `MYSQL_RES*`, `sqlite3*`, raw `malloc` addresses, a `msg_t*`) in 32-bit GSC ints via `stackPushInt((intptr_t)ptr)` / `stackGetParams("i")`, truncating 64-bit pointers -> segfault on x64 (x86 was fine because pointers fit). Fixed at the VM level per IzNoGoD's suggestion: a dedicated scalar pointer type, not a handle table.
+libcod stored real C pointers (`MYSQL*`, `MYSQL_RES*`, `sqlite3*`, raw `malloc` addresses, a `msg_t*`) in 32-bit GSC ints via `stackPushInt((intptr_t)ptr)` / `stackGetParams("i")`, truncating 64-bit pointers -> segfault on x64 (x86 was fine because pointers fit). Fixed at the VM level per voron00's suggestion: a dedicated scalar pointer type, not a handle table.
 
 **VM type (`src/script/`):**
 - **script_public.h**: new `VAR_RAWPOINTER` in `var_type_t`, inserted after `VAR_INTEGER` (scalar band — outside `VAR_BEGIN_REF..VAR_END_REF` and the object/dead ranges, so `AddRefToValue`/`RemoveRefToValue`/GC treat it as a no-op scalar, confirmed by reading those switch statements). Matching `"raw pointer"` in the positional `var_typename[]`. Added a dedicated **`void *rawPointerValue`** member to `VariableUnion` (overlays the existing 8-byte `pointerValue`; union size + `static_assert` unchanged) so the push/get are cast-free. NB: do **not** retype the existing `pointerValue` (uintptr_t) to `void*` — it is used as an integer id for array indices/entity ids in ~20 places.
@@ -24,7 +24,7 @@ libcod stored real C pointers (`MYSQL*`, `MYSQL_RES*`, `sqlite3*`, raw `malloc` 
 
 **Diagnostics:** implemented the stubbed `Scr_DumpScriptVariables` (was `UNIMPLEMENTED`) in `scr_variable.cpp` as a summary — on an "exceeded maximum number of script variables" overflow it now prints live-variable counts by type, so the GSC variable-pool budget (cap `VARIABLELIST_PARENT_SIZE` = 0x8000) can be diagnosed (e.g. a large result set materialized into a GSC array via `getRows`).
 
-**GSC-side guidance (`_mysql.gsc`):** with NULL->undefined, use `isDefined(handle)` as the validity check; the old `is_valid_pointer()` stringify hack must be removed (a `VAR_RAWPOINTER` cannot be cast to string — `"" + handle` errors). Known latent caveat (not a cast warning, left as-is): `binarybuffer` `'s'` type stores an 8-byte `char*` but advances `pos += 4` — wrong on x64 if used.
+**GSC-side guidance (`_mysql.gsc`):** with NULL->undefined, use `isDefined(handle)` as the validity check; the old `is_valid_pointer()` stringify hack must be removed (a `VAR_RAWPOINTER` cannot be cast to string — `"" + handle` errors). `binarybuffer` `'s'` type (write+read) — **FIXED**: stored a `char*` (8 bytes on x64) but advanced `pos += 4`, overrunning the buffer by 4 bytes per string write on x64 (a real heap-overflow if a mod uses `binarybuffer_write/read(bb,"s",..)`). Now advances `sizeof(char *)`; x86 behavior unchanged.
 
 lacks), plus the custom-state infrastructure and ~34 native engine hooks. Every round compiles and
 the full binary relinks clean.
@@ -281,8 +281,7 @@ All libcod modules that passed real pointers through GSC as ints (`gsc_memory`, 
 `gsc_mysql_voron`, `gsc_sqlite`, `gsc_utils` remotecommand) now use the `VAR_RAWPOINTER` type
 (or a widened `intptr_t` field for `binarybuffer.address`). A whole-tree `-Wint-to-pointer-cast`
 sweep is clean; the core engine had no real truncations (only the benign `scope` sentinel, fixed).
-Remaining latent item: `binarybuffer` `'s'` type advances `pos += 4` for an 8-byte pointer — a
-buffer-format/logic issue, not a cast; left as-is unless a mod uses `binarybuffer_write(bb,"s",..)`.
+`binarybuffer` `'s'` type (write+read) — **FIXED**: stored a `char*` (8 bytes on x64) but advanced `pos += 4`, overrunning the buffer by 4 bytes per string write on x64 (a real heap-overflow if a mod uses `binarybuffer_write/read(bb,"s",..)`). Now advances `sizeof(char *)`; x86 behavior unchanged.
 
 ### Deferred features (need deeper work or subsystems)
 - **gsc_bots** — all bot delta functions need zk's bot-usercmd hook / testclient state.
@@ -350,6 +349,13 @@ trivial rebinds.
 
 ---
 
+## 9. How to apply (general pattern each round)
+
+1. `git checkout` the rev source files being re-patched.
+2. `cp` the updated `gsc_zk_*` module files into `src/libcod/`.
+3. `git apply` the relevant `*.patch` files.
+4. `./build.sh nomysql` (or your MySQL variant once the client lib is in place).
+5. Functional test in-game.
 
 All deliverables are in the outputs folder: the 6 `gsc_zk_*` module pairs, `gsc_zk_custom_state`,
 and per-file patches for `gsc.cpp` and each modified rev source file.
@@ -416,7 +422,6 @@ functions. Three distinct situations:
 
 **Net:** 3 of 11 are hard-blocked. The other 8 form the single largest feature in the port and depend on
 `libspeex-dev` + partial (structure-only) sandbox verification. This is a dedicated effort, not a drop-in round.
-
 
 
 # CoD2rev_Server
