@@ -7,7 +7,7 @@ client lib is supplied).
 **Progress: ~207 of 221 GSC functions** (14 zk names remain — accurate recount; the 221 denominator is approximate) in the case-insensitive delta (functions zk has that rev
 
 ## 64-bit pointer correctness (VAR_RAWPOINTER) — x64 handle-truncation fix
-libcod stored real C pointers (`MYSQL*`, `MYSQL_RES*`, `sqlite3*`, raw `malloc` addresses, a `msg_t*`) in 32-bit GSC ints via `stackPushInt((intptr_t)ptr)` / `stackGetParams("i")`, truncating 64-bit pointers -> segfault on x64 (x86 was fine because pointers fit). Fixed at the VM level per voron00's suggestion: a dedicated scalar pointer type, not a handle table.
+libcod stored real C pointers (`MYSQL*`, `MYSQL_RES*`, `sqlite3*`, raw `malloc` addresses, a `msg_t*`) in 32-bit GSC ints via `stackPushInt((intptr_t)ptr)` / `stackGetParams("i")`, truncating 64-bit pointers -> segfault on x64 (x86 was fine because pointers fit). Fixed at the VM level per IzNoGoD's suggestion: a dedicated scalar pointer type, not a handle table.
 
 **VM type (`src/script/`):**
 - **script_public.h**: new `VAR_RAWPOINTER` in `var_type_t`, inserted after `VAR_INTEGER` (scalar band — outside `VAR_BEGIN_REF..VAR_END_REF` and the object/dead ranges, so `AddRefToValue`/`RemoveRefToValue`/GC treat it as a no-op scalar, confirmed by reading those switch statements). Matching `"raw pointer"` in the positional `var_typename[]`. Added a dedicated **`void *rawPointerValue`** member to `VariableUnion` (overlays the existing 8-byte `pointerValue`; union size + `static_assert` unchanged) so the push/get are cast-free. NB: do **not** retype the existing `pointerValue` (uintptr_t) to `void*` — it is used as an integer id for array indices/entity ids in ~20 places.
