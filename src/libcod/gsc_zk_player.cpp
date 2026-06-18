@@ -3297,4 +3297,27 @@ void gsc_zk_player_setrechambering(scr_entref_t ref)
 	stackPushBool(qtrue);
 }
 
+// ---- protocol -> short version string ----
+static const char *GetShortVersionFromProtocol(int protocol)
+{
+	switch ( protocol )
+	{
+		case 115: return "1.0"; // 0x73
+		case 117: return "1.2"; // 0x75
+		default:  return "1.3"; // 0x76 (118) and 0x77 (119)
+	}
+}
+
+void gsc_zk_player_getprotocolstring(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	if ( id >= MAX_CLIENTS )
+	{
+		stackError("gsc_zk_player_getprotocolstring() entity %i is not a player", id);
+		stackPushUndefined();
+		return;
+	}
+	stackPushString(GetShortVersionFromProtocol(svs.clients[id].netchan.protocol));
+}
+
 #endif

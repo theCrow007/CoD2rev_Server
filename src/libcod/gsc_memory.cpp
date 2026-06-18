@@ -175,7 +175,7 @@ void gsc_binarybuffer_write()
 		strcpy(copy, tmp_str);
 		bb->strings->push_back(copy);
 		*(char **)(bb->address + bb->pos) = copy;
-		bb->pos += 4;
+		bb->pos += sizeof(char *); // x64: a stored pointer is 8 bytes, not 4
 		break;
 	}
 	case 'c':
@@ -240,7 +240,7 @@ void gsc_binarybuffer_read()
 	{
 		char *tmp_str;
 		tmp_str = *(char **)(bb->address + bb->pos);
-		bb->pos += 4;
+		bb->pos += sizeof(char *); // x64: a stored pointer is 8 bytes, not 4
 		stackPushString(tmp_str);
 		return;
 	}

@@ -546,6 +546,7 @@ scr_method_t scriptMethods[] =
 	{"setActivateOnUseButtonRelease", gsc_zk_player_setactivateonusebuttonrelease, 0},
 	{"processClientCommand", gsc_zk_player_processclientcommand, 0},
 	{"getCurrentWeaponSlot", gsc_zk_player_getcurrentweaponslot, 0},
+	{"getProtocolString", gsc_zk_player_getprotocolstring, 0},
 	{"isRechambering", gsc_zk_player_isrechambering, 0},
 	{"setRechambering", gsc_zk_player_setrechambering, 0},
 	{"spawnGrenade", gsc_zk_weapons_spawngrenade, 0},

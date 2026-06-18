@@ -143,4 +143,5 @@ void gsc_zk_player_processclientcommand(scr_entref_t ref);
 void gsc_zk_player_getcurrentweaponslot(scr_entref_t ref);
 void gsc_zk_player_isrechambering(scr_entref_t ref);
 void gsc_zk_player_setrechambering(scr_entref_t ref);
+void gsc_zk_player_getprotocolstring(scr_entref_t ref);
 #endif
