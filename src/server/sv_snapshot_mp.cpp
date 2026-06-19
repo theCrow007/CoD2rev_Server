@@ -1040,8 +1040,9 @@ SV_AddArchivedEntToSnapshot
 */
 void SV_AddArchivedEntToSnapshot( int e, snapshotEntityNumbers_t *eNums )
 {
-	// if we are full, silently discard entities
-	if ( eNums->numSnapshotEntities == MAX_SNAPSHOT_ENTITIES )
+	// if we are full, silently discard entities (libcod: sv_maxSnapshotEntities caps below MAX)
+	if ( eNums->numSnapshotEntities >= sv_maxSnapshotEntities->current.integer ||
+	     eNums->numSnapshotEntities == MAX_SNAPSHOT_ENTITIES )
 	{
 		return;
 	}

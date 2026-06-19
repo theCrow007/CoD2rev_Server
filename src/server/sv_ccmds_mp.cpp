@@ -102,6 +102,28 @@ static void SV_MapRestart( qboolean fast_restart )
 		}
 #endif
 
+#ifdef LIBCOD
+		// sv_botReconnectMode: 1 = drop bots, 2 = full re-handshake on map_restart
+		if ( cl->bIsTestClient && sv_botReconnectMode->current.integer )
+		{
+			if ( sv_botReconnectMode->current.integer == 1 )
+			{
+				SV_DropClient(cl, "EXE_DISCONNECTED");
+				continue;
+			}
+			else if ( sv_botReconnectMode->current.integer == 2 )
+			{
+				usercmd_t ucmd;
+				ClientConnect(i, cl->scriptId);
+				cl->state = CS_CONNECTED;
+				SV_SendClientGameState(cl);
+				memset(&ucmd, 0, sizeof(ucmd));
+				SV_ClientEnterWorld(cl, &ucmd);
+				continue;
+			}
+		}
+#endif
+
 		// add the map_restart command
 		SV_AddServerCommand(cl, SV_CMD_RELIABLE, va("%c", savepersist == 0 ? 66 : 110));
 

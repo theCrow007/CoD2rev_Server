@@ -760,6 +760,15 @@ void G_CallSpawn(void)
 		return;
 	}
 
+#ifdef LIBCOD
+	// libcod: g_spawnMapWeapons / g_spawnMapTurrets - skip spawning map-placed weapons/turrets
+	if ( g_spawnMapWeapons && !g_spawnMapWeapons->current.boolean && !strncmp(classname, "weapon_", 7) )
+		return;
+	if ( g_spawnMapTurrets && !g_spawnMapTurrets->current.boolean &&
+	     ( !strncmp(classname, "misc_mg42", 9) || !strncmp(classname, "misc_turret", 11) ) )
+		return;
+#endif
+
 	gitem_t *item = G_GetItemForClassname(classname);
 
 	// check item spawn functions

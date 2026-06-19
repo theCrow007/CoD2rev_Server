@@ -176,17 +176,24 @@ netadr_t *SV_MasterAddress()
 		return &sv_master_address;
 	}
 
-	Com_Printf("Resolving %s\n", MASTER_SERVER_NAME);
+#ifdef LIBCOD
+	const char *masterServer = ( sv_masterServer && *sv_masterServer->current.string ) ? sv_masterServer->current.string : MASTER_SERVER_NAME;
+	int masterPort = ( sv_masterPort ) ? sv_masterPort->current.integer : PORT_MASTER;
+#else
+	const char *masterServer = MASTER_SERVER_NAME;
+	int masterPort = PORT_MASTER;
+#endif
+	Com_Printf("Resolving %s\n", masterServer);
 
-	if ( !NET_StringToAdr(MASTER_SERVER_NAME, &sv_master_address) )
+	if ( !NET_StringToAdr(masterServer, &sv_master_address) )
 	{
-		Com_Printf("Couldn't resolve address: %s\n", MASTER_SERVER_NAME);
+		Com_Printf("Couldn't resolve address: %s\n", masterServer);
 		return &sv_master_address;
 	}
 
-	if ( !strstr(":", MASTER_SERVER_NAME) )
+	if ( !strstr(":", masterServer) )
 	{
-		sv_master_address.port = BigShort(PORT_MASTER);
+		sv_master_address.port = BigShort(masterPort);
 	}
 
 	port = BigShort(sv_master_address.port);

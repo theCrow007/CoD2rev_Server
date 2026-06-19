@@ -286,14 +286,19 @@ qboolean StuckInClient( gentity_t *self )
 
 	Vec2Scale(vDelta, hitSpeed, hit->client->ps.velocity);
 
-	hit->client->ps.pm_time = PLAYER_PUSH_TIME;
+	hit->client->ps.pm_time = ( g_playerCollisionEjectDuration ? g_playerCollisionEjectDuration->current.integer : PLAYER_PUSH_TIME ); // libcod
 	hit->client->ps.pm_flags |= PMF_TIME_SLIDE;
 
 	Vec2Scale(vDelta, -selfSpeed, self->client->ps.velocity);
 
-	self->client->ps.pm_time = PLAYER_PUSH_TIME;
+	self->client->ps.pm_time = ( g_playerCollisionEjectDuration ? g_playerCollisionEjectDuration->current.integer : PLAYER_PUSH_TIME ); // libcod
 	self->client->ps.pm_flags |= PMF_TIME_SLIDE;
 
+#ifdef LIBCOD
+	// libcod: g_playerCollisionEjectDamageAllowed - allow collision damage (return qfalse) when set
+	if ( g_playerCollisionEjectDamageAllowed && g_playerCollisionEjectDamageAllowed->current.boolean )
+		return qfalse;
+#endif
 	return qtrue;
 }
 

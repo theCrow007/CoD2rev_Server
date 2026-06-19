@@ -1306,6 +1306,9 @@ qboolean Cmd_FollowCycle_f( gentity_t *ent, int dir )
 		}
 
 #ifdef LIBCOD
+		// libcod: g_spectateBots - skip bots in the spectate cycle when disabled
+		{ extern serverStatic_t svs; extern dvar_t *g_spectateBots;
+		  if ( svs.clients[clientnum].netchan.remoteAddress.type == NA_BOT && g_spectateBots && !g_spectateBots->current.boolean ) continue; }
 		// zk_libcod: setAllowSpectators - skip clients who disabled being spectated
 		{ extern qboolean zk_IsNotAllowingSpectators(int clientNum); if ( zk_IsNotAllowingSpectators(clientnum) ) continue; }
 #endif

@@ -1,6 +1,6 @@
 # zk_libcod dvar port plan (rev / CoD2rev_Server)
 
-Coverage: **~44 of 93 registered** (12 pre-existing + 17 Tier 1 + 15 Tier 2).
+Coverage: **72 of 91 zk dvars ported** (19 remain). Tier 1 complete; Tiers 2/3 wired wherever a real rev site exists.
 
 Tier 1 COMPLETE (17 dvars, all wired):
  messages: sv_kickMessages, sv_botKickMessages, sv_disconnectMessages, sv_timeoutMessages,
@@ -88,3 +88,51 @@ Deferred (5) - underlying feature absent in rev or risky subsystem work, NOT ine
 - Movement: g_pointTraceMovement, g_bulletDrop physics (per-player methods)
 - Bots: sv_botReconnectMode
 
+## Suggested order
+Tier 1 first (immediate value, safe), then pick Tier 3 subsystems by what your server actually needs
+(proxy vs fast-download vs filesystem), with Tier 2 items slotted in as their related code is touched.
+
+## Tier 3 / gap status (added this pass)
+Newly wired (real sites, clean x64 build):
+ g_spawnMapWeapons / g_spawnMapTurrets (G_CallSpawn classname skip);
+ g_playerCollisionEjectDuration / g_playerCollisionEjectDamageAllowed (extend rev eject in g_active);
+ sv_maxSnapshotEntities (SV_AddArchivedEntToSnapshot cap, clamped to MAX_SNAPSHOT_ENTITIES);
+ g_spectateBots (skip bots in follow-cycle, g_cmds; NA_BOT check; default true=rev behavior);
+ sv_downloadMessageAtMap (gate sv_downloadMessage block for mp_/empty files; default true=rev behavior);
+ sv_downloadNotifications (broadcast on WWW redirect; default false);
+ sv_minimizeSysteminfo (modes 1-3 move dvars systeminfo->codinfo, applied before SV_SaveSystemInfo;
+   null-guarded Dvar_FindVar; also minimizes cl_allowDownload/cl_wwwDownload at mode 3 if present);
+ sv_botReconnectMode (map_restart: 1=drop bots, 2=full re-handshake; sv_ccmds_mp, after sv_kickbots block;
+   reconciled zk clscriptid -> rev scriptId; default 0 = rev behavior).
+
+REMAINING 27 - each needs a subsystem, an absent field/infra, or is a risky/redundant fit. NOT inert toggles.
+ Whole subsystem (12):
+   manymaps filesystem (genuine subsystem - adds gametype/map-script dirs + stock-map replacement to
+     the FS restart flow): fs_callbacks, fs_gametypes, fs_mapScriptDirectories, fs_replaceStockMaps,
+     loc_loadLocalizedMods, sv_version
+ Absent field/infra (7):
+   sv_kickGamestateLimitedClients (resourceLimitedState), sv_botUseTriggerUse (custom_scr_const),
+   g_safePrecache + g_reservedModels (cached_models + precache slot reservation),
+   sv_reservedConfigstringBufferSize (configstring buffer reservation),
+   g_pointTraceMovement (G_TracePoint absent; rev only has G_TraceCapsule),
+ Awkward/risky/redundant in rev (6):
+   net_noFragmentationDelay (clashes with rev fast-dl fragment path),
+   g_brushModelCollisionTweaks (snapshot serialization, risky),
+   g_triggerMode (needs TriggerDamageEntities),
+   sv_fastDownloadSpeed (rev uses blockspersnap, msg-len constrained), sv_autoAddSnapshotEntities (snapshot add path)
+ Client-only (2): cl_allowDownload, cl_wwwDownload (handled via sv_minimizeSysteminfo mode 3)
+
+## Update: auth/master + legacy download wired
+ sv_authorizeServer / sv_authorizePort / sv_authorizeTimeout / sv_noauthorize (sv_client_mp.cpp challenge
+   handler) and sv_masterServer / sv_masterPort (sv_main_pc_mp.cpp SV_MasterAddress): rev already had the
+   authorize+master infrastructure with HARDCODED AUTHORIZE_SERVER_NAME/PORT_AUTHORIZE/AUTHORIZE_TIMEOUT and
+   MASTER_SERVER_NAME/PORT_MASTER; these dvars just make them configurable. Defaults == the old #defines, so
+   no behavior change. sv_noauthorize default false. (So the "auth/master subsystem" was configurability, not
+   a feature port.)
+ sv_downloadMessageForLegacyClients (sv_client_mp.cpp download fn): custom message for protocol 115/119
+   clients; uses rev's cl->netchan.protocol instead of zk's customPlayerState.protocolVersion; default "".
+ sv_botReconnectMode (prev): done.
+Remaining 19: manymaps fs (6, real subsystem); absent infra (6: sv_kickGamestateLimitedClients,
+ sv_botUseTriggerUse, g_safePrecache, g_reservedModels, sv_reservedConfigstringBufferSize, g_pointTraceMovement);
+ awkward/risky (5: net_noFragmentationDelay, g_brushModelCollisionTweaks, g_triggerMode, sv_fastDownloadSpeed,
+ sv_autoAddSnapshotEntities); client-only (2: cl_allowDownload, cl_wwwDownload, handled via sv_minimizeSysteminfo).

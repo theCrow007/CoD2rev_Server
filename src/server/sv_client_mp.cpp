@@ -426,17 +426,33 @@ void SV_GetChallenge( netadr_t from )
 		return;
 	}
 
+#ifdef LIBCOD
+	// libcod: sv_noauthorize - skip the authorize handshake entirely
+	if ( sv_noauthorize && sv_noauthorize->current.boolean )
+	{
+		challenge->pingTime = svs.time;
+		NET_OutOfBandPrint(NS_SERVER, from, va("challengeResponse %i", challenge->challenge));
+		return;
+	}
+#endif
 	// look up the authorize server's IP
 	if ( !svs.authorizeAddress.ip[0] && svs.authorizeAddress.type != NA_BAD )
 	{
-		Com_Printf( "Resolving %s\n", AUTHORIZE_SERVER_NAME );
-		if ( !NET_StringToAdr( AUTHORIZE_SERVER_NAME, &svs.authorizeAddress ) )
+#ifdef LIBCOD
+		const char *authServer = ( sv_authorizeServer && *sv_authorizeServer->current.string ) ? sv_authorizeServer->current.string : AUTHORIZE_SERVER_NAME;
+		int authPort = ( sv_authorizePort ) ? sv_authorizePort->current.integer : PORT_AUTHORIZE;
+#else
+		const char *authServer = AUTHORIZE_SERVER_NAME;
+		int authPort = PORT_AUTHORIZE;
+#endif
+		Com_Printf( "Resolving %s\n", authServer );
+		if ( !NET_StringToAdr( authServer, &svs.authorizeAddress ) )
 		{
 			Com_Printf( "Couldn't resolve address\n" );
 			return;
 		}
-		svs.authorizeAddress.port = BigShort( PORT_AUTHORIZE );
-		Com_Printf( "%s resolved to %i.%i.%i.%i:%i\n", AUTHORIZE_SERVER_NAME,
+		svs.authorizeAddress.port = BigShort( authPort );
+		Com_Printf( "%s resolved to %i.%i.%i.%i:%i\n", authServer,
 		            svs.authorizeAddress.ip[0], svs.authorizeAddress.ip[1],
 		            svs.authorizeAddress.ip[2], svs.authorizeAddress.ip[3],
 		            BigShort( svs.authorizeAddress.port ) );
@@ -445,7 +461,7 @@ void SV_GetChallenge( netadr_t from )
 	// if they have been challenging for a long time and we
 	// haven't heard anything from the authoirze server, go ahead and
 	// let them in, assuming the id server is down
-	if ( svs.time - challenge->firstTime > AUTHORIZE_TIMEOUT )
+	if ( svs.time - challenge->firstTime > ( sv_authorizeTimeout ? sv_authorizeTimeout->current.integer : AUTHORIZE_TIMEOUT ) ) // libcod: sv_authorizeTimeout
 	{
 		netadr_t adr = *SV_MasterAddress();
 
@@ -1167,6 +1183,10 @@ void SV_WWWRedirectClient( client_t *cl, msg_t *msg )
 		download_flag = 1;
 	}
 	MSG_WriteLong( msg, download_flag ); // flags
+#ifdef LIBCOD
+	if ( sv_downloadNotifications && sv_downloadNotifications->current.boolean )
+		SV_SendServerCommand(NULL, SV_CMD_CAN_IGNORE, "f \"%s^7 downloads %s\"", cl->name, cl->downloadName);
+#endif
 	*cl->downloadName = 0;
 }
 
@@ -1209,12 +1229,30 @@ void SV_WriteDownloadToClient( client_t *cl, msg_t *msg )
 	}
 
 #ifdef LIBCOD
-	if (*sv_downloadMessage->current.string)
+	if (*sv_downloadMessage->current.string &&
+	     !( ( strstr(cl->downloadName, "mp_") || strstr(cl->downloadName, "empty") ) &&
+	        sv_downloadMessageAtMap && !sv_downloadMessageAtMap->current.boolean ) ) // libcod: sv_downloadMessageAtMap
 	{
 		Com_sprintf(errorMessage, sizeof(errorMessage), sv_downloadMessage->current.string);
 		MSG_WriteByte( msg, svc_download );
 		MSG_WriteShort( msg, 0 ); // client is expecting block zero
 		MSG_WriteLong( msg, -1 ); // illegal file size
+		MSG_WriteString( msg, errorMessage );
+		*cl->downloadName = 0;
+		return;
+	}
+
+	// libcod: sv_downloadMessageForLegacyClients - custom message for 1.0 (115) / 119 clients
+	// where HTTP download is unsupported/broken; same map-file exception as sv_downloadMessageAtMap.
+	if ( *sv_downloadMessageForLegacyClients->current.string &&
+	     ( cl->netchan.protocol == 115 || cl->netchan.protocol == 119 ) &&
+	     !( ( strstr(cl->downloadName, "mp_") || strstr(cl->downloadName, "empty") ) &&
+	        sv_downloadMessageAtMap && !sv_downloadMessageAtMap->current.boolean ) )
+	{
+		Com_sprintf(errorMessage, sizeof(errorMessage), sv_downloadMessageForLegacyClients->current.string);
+		MSG_WriteByte( msg, svc_download );
+		MSG_WriteShort( msg, 0 );
+		MSG_WriteLong( msg, -1 );
 		MSG_WriteString( msg, errorMessage );
 		*cl->downloadName = 0;
 		return;

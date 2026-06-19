@@ -620,6 +620,16 @@ void SV_FinalMessage( const char *message )
 	int			i, j;
 	client_t	*cl;
 
+#ifdef LIBCOD
+	// libcod: sv_genericServerErrorMessage hides the specific shutdown reason from clients
+	if ( sv_genericServerErrorMessage && sv_genericServerErrorMessage->current.boolean &&
+	     strncmp(message, "EXE_SERVERRESTART", 17) &&
+	     strncmp(message, "EXE_SERVERQUIT", 15) )
+	{
+		message = "EXE_SERVERKILLED";
+	}
+#endif
+
 	// send it twice, ignoring rate
 	for ( j = 0 ; j < 2 ; j++ )
 	{
@@ -1044,6 +1054,28 @@ void SV_SpawnServer( char *server )
 	Dvar_SetString(sv_referencedIwds, FS_ReferencedIwdChecksums());
 	Dvar_SetString(sv_referencedIwdNames, FS_ReferencedIwdNames());
 
+#ifdef LIBCOD
+	// libcod: sv_minimizeSysteminfo - move selected dvars out of the length-limited systeminfo
+	// string into codinfo; higher modes move progressively more. Applied before SV_SaveSystemInfo.
+	{
+		sv_minimizeSysteminfo = Dvar_RegisterInt("sv_minimizeSysteminfo", 0, 0, 3, DVAR_LATCH | DVAR_ARCHIVE);
+		if ( sv_minimizeSysteminfo->current.integer )
+		{
+			static const char *min1[] = { "bg_fallDamageMaxHeight", "bg_fallDamageMinHeight", "timescale",
+				"g_synchronousClients", "sv_cheats", "sv_disableClientConsole", "sv_voice", "sv_voiceQuality", 0 };
+			static const char *min2[] = { "jump_height", "jump_stepSize", "jump_slowdownEnable",
+				"jump_ladderPushVel", "jump_spreadAdd", 0 };
+			static const char *min3[] = { "cl_allowDownload", "cl_wwwDownload", 0 };
+			const char **lists[3] = { min1, min2, min3 };
+			for ( int li = 0; li < sv_minimizeSysteminfo->current.integer && li < 3; li++ )
+				for ( const char **nm = lists[li]; *nm; nm++ )
+				{
+					dvar_t *dv = Dvar_FindVar(*nm);
+					if ( dv ) { dv->flags &= ~DVAR_SYSTEMINFO; dv->flags |= DVAR_CODINFO; }
+				}
+		}
+	}
+#endif
 	// save systeminfo and serverinfo strings
 	SV_SaveSystemInfo();
 
