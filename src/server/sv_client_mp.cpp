@@ -1871,6 +1871,17 @@ static void SV_VerifyIwds_f( client_t *cl )
 	}
 #endif
 
+#ifdef LIBCOD
+	// libcod: sv_verifyIwds - skip iwd checksum verification (accept client as pure) when
+	// disabled, or for cracked-client protocols 117/119 that ship different stock-iwd checksums.
+	if ( !sv_verifyIwds->current.boolean ||
+	     cl->netchan.protocol == 117 || cl->netchan.protocol == 119 )
+	{
+		cl->pureAuthentic = 1;
+		return;
+	}
+#endif
+
 	bGood = qtrue;
 	nChkSum1 = nChkSum2 = 0;
 	nClientPaks = Cmd_Argc();

@@ -1,5 +1,8 @@
 #include "../qcommon/qcommon.h"
 #include "bg_public.h"
+#ifdef LIBCOD
+#include "../libcod/gsc_zk_custom_state.hpp"
+#endif
 
 dvar_t *jump_height;
 dvar_t *jump_stepSize;
@@ -323,6 +326,9 @@ void Jump_Start( pmove_t *pm, pml_t *pml, float height )
 	pml->almostGroundPlane = qfalse;
 	pml->walking = qfalse;
 
+#ifdef LIBCOD
+	int jumpGroundEntityNum = ps->groundEntityNum; // libcod: jump_carryMoverVelocity
+#endif
 	ps->groundEntityNum = ENTITYNUM_NONE;
 	ps->jumpTime = pm->cmd.serverTime;
 	ps->jumpOriginZ = ps->origin[2];
@@ -341,6 +347,20 @@ void Jump_Start( pmove_t *pm, pml_t *pml, float height )
 	{
 		ps->aimSpreadScale = 255;
 	}
+
+#ifdef LIBCOD
+	// libcod: jump_carryMoverVelocity - inherit a script mover's velocity when jumping off it
+	if ( jump_carryMoverVelocity && jump_carryMoverVelocity->current.boolean &&
+	     jumpGroundEntityNum != ENTITYNUM_WORLD && jumpGroundEntityNum != ENTITYNUM_NONE )
+	{
+		gentity_t *moverEnt = &g_entities[jumpGroundEntityNum];
+		if ( moverEnt->s.eType == ET_SCRIPTMOVER )
+		{
+			VectorAdd(ps->velocity, customEntityState[moverEnt->s.number].velocity, ps->velocity);
+			ps->jumpOriginZ = moverEnt->r.currentOrigin[2];
+		}
+	}
+#endif
 }
 
 /*

@@ -1333,7 +1333,9 @@ void ClientEndFrame( gentity_t *ent )
 
 	client->currentAimSpreadScale = client->ps.aimSpreadScale / 255;
 
-	Player_UpdateLookAtEntity(ent);
+	// libcod: sv_isLookingAtOnDemand - skip the per-frame lookat update; compute it in IsLookingAt
+	if ( !sv_isLookingAtOnDemand || !sv_isLookingAtOnDemand->current.boolean )
+		Player_UpdateLookAtEntity(ent);
 	Player_UpdateCursorHints(ent);
 
 	// apply all the damage taken this frame

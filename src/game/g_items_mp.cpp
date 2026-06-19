@@ -1274,23 +1274,43 @@ int GetFreeCueSpot()
 
 		fDistSqrd = 9.9999803e11;
 
-		for ( j = 0; j < level.maxclients; j++ )
+		// libcod: g_droppedWeaponsNeglectBots - exclude bots from the nearest-client test so
+		// weapons near only bots become removable; fall back to all clients if no real players.
 		{
-			if ( level.clients[j].sess.connected != CON_CONNECTED )
+			extern serverStatic_t svs;
+			qboolean foundRealPlayers = qfalse;
+
+			if ( g_droppedWeaponsNeglectBots && g_droppedWeaponsNeglectBots->current.boolean )
 			{
-				continue;
+				for ( j = 0; j < level.maxclients; j++ )
+				{
+					if ( level.clients[j].sess.connected != CON_CONNECTED )
+						continue;
+					if ( level.clients[j].sess.sessionState != SESS_STATE_PLAYING )
+						continue;
+					if ( svs.clients[j].netchan.remoteAddress.type == NA_BOT )
+						continue;
+
+					foundRealPlayers = qtrue;
+					fClientDistSqrd = Vec3DistanceSq(g_entities[j].r.currentOrigin, ent->r.currentOrigin);
+					if ( fDistSqrd > fClientDistSqrd )
+						fDistSqrd = fClientDistSqrd;
+				}
 			}
 
-			if ( level.clients[j].sess.sessionState != SESS_STATE_PLAYING )
+			if ( !foundRealPlayers )
 			{
-				continue;
-			}
+				for ( j = 0; j < level.maxclients; j++ )
+				{
+					if ( level.clients[j].sess.connected != CON_CONNECTED )
+						continue;
+					if ( level.clients[j].sess.sessionState != SESS_STATE_PLAYING )
+						continue;
 
-			fClientDistSqrd = Vec3DistanceSq(g_entities[j].r.currentOrigin, ent->r.currentOrigin);
-
-			if ( fDistSqrd > fClientDistSqrd )
-			{
-				fDistSqrd = fClientDistSqrd;
+					fClientDistSqrd = Vec3DistanceSq(g_entities[j].r.currentOrigin, ent->r.currentOrigin);
+					if ( fDistSqrd > fClientDistSqrd )
+						fDistSqrd = fClientDistSqrd;
+				}
 			}
 		}
 

@@ -1478,6 +1478,9 @@ void ScrCmd_IsLookingAt( scr_entref_t entref )
 	}
 
 	pOther = Scr_GetEntity(0);
+	// libcod: sv_isLookingAtOnDemand - refresh the lookat entity now instead of every frame
+	if ( sv_isLookingAtOnDemand && sv_isLookingAtOnDemand->current.boolean )
+		Player_UpdateLookAtEntity(pSelf);
 	Scr_AddBool( pSelf->client->pLookatEnt == pOther );
 }
 

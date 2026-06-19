@@ -1,6 +1,6 @@
 # zk_libcod dvar port plan (rev / CoD2rev_Server)
 
-Coverage: **37 of 93 registered**. Tier 1 COMPLETE (17/17). Tier 2: 8 done, rest reclassified.
+Coverage: **~44 of 93 registered** (12 pre-existing + 17 Tier 1 + 15 Tier 2).
 
 Tier 1 COMPLETE (17 dvars, all wired):
  messages: sv_kickMessages, sv_botKickMessages, sv_disconnectMessages, sv_timeoutMessages,
@@ -40,27 +40,37 @@ Debug logging:
   sv_downloadMessageAtMap, sv_downloadRetransmitTimeout, sv_kickGamestateLimitedClients,
   sv_genericServerErrorMessage, sv_botUseTriggerUse
 
-## Tier 2 status
-Done (wired, building x64):
- g_forceRate / g_forceSnaps (SV_UserinfoChanged override); sv_limitLocalRcon (rcon rate-limit skip for
- loopback, via NET_IsLocalAddress); g_resetSlide (jump pm_flags clear, bg_jump.cpp); sv_updateCursorHints
- (Player_UpdateCursorHints early-out); sv_downloadRetransmitTimeout (replaces hardcoded 1000 ms);
- scr_turretDamageName (gates turret weapon-name substitution, g_combat); g_turretMissingTagTerminalError
- (missing [tag_player] -> Com_Error vs non-fatal warning, g_client).
-Defaults preserve rev behavior except sv_limitLocalRcon (loopback rcon no longer rate-limited by default).
+## Tier 2 status — 15 done, 5 deferred
+NOTE: an earlier pass wrongly deferred several items due to a grep bug (escaped pipes in `grep -E`
+match a literal '|'). Re-checked with correct syntax; the features below DO exist in rev and are wired.
 
-Deferred - NOT clean toggles; each needs a mini feature-port or the underlying feature is absent in rev:
- - jump_carryMoverVelocity: needs g_entities + customEntityState velocity reach from bgame (layering).
- - g_sendEmtpyOffhandEvents: EV_EMPTY_OFFHAND / PM_SendEmtpyOffhandEvent path not present in rev.
- - g_droppedWeaponsNeglectBots: dropped-weapon removal-by-distance loop not located in rev.
- - sv_isLookingAtOnDemand: needs on-demand IsLookingAt path (rev has per-frame Player_UpdateLookAtEntity).
- - sv_botUseTriggerUse: needs custom_scr_const.bot_trigger + the nested use/cursor site.
- - sv_downloadNotifications / sv_downloadMessageAtMap: zk-added download notification messages (absent).
- - g_brushModelCollisionTweaks: brush-model eFlags/contents collision changes (snapshot path, involved).
- - g_noMoverBlockage: needs a new CodeCallback_MoverBlockage callback.
- - sv_verifyIwds: iwd checksum verification feature.
- - sv_kickGamestateLimitedClients: needs customPlayerState.resourceLimitedState gamestate-overflow feature.
- - sv_genericServerErrorMessage: needs the generic server-error message site.
+Done (wired, clean x64 build):
+ g_forceRate / g_forceSnaps (SV_UserinfoChanged override); sv_limitLocalRcon (rcon rate-limit skip for
+ loopback via NET_IsLocalAddress); g_resetSlide (jump pm_flags clear); sv_updateCursorHints
+ (Player_UpdateCursorHints early-out); sv_downloadRetransmitTimeout (replaces hardcoded 1000 ms);
+ scr_turretDamageName (turret weapon-name substitution gate); g_turretMissingTagTerminalError
+ (missing [tag_player] -> Com_Error vs non-fatal warning); g_sendEmtpyOffhandEvents (PM_SendEmtpyOffhandEvent
+ gate); g_noMoverBlockage + CodeCallback_MoverBlockage (G_TryPushingEntity, full new callback);
+ sv_genericServerErrorMessage (SV_FinalMessage); g_droppedWeaponsNeglectBots (excludes bots from the
+ dropped-weapon nearest-client test, g_items; bot check via svs.clients[].netchan.remoteAddress.type==NA_BOT);
+ jump_carryMoverVelocity (inherit script-mover velocity on jump, bg_jump -> g_entities + customEntityState);
+ sv_isLookingAtOnDemand (skip per-frame Player_UpdateLookAtEntity, compute in ScrCmd_IsLookingAt);
+ sv_verifyIwds (gate pure-client iwd checksum verification; auto-skip cracked protocols 117/119).
+
+Behavior-change defaults (all documented, all revertible):
+ - sv_limitLocalRcon=false -> loopback rcon no longer rate-limited.
+ - sv_disconnectMessages=true (Tier 1) -> disconnect broadcasts shown.
+ - sv_verifyIwds=true but protocol 117/119 clients now auto-skip iwd verification (cracked-client compat).
+ All other Tier 2 defaults preserve rev behavior (force* off, g_resetSlide off, cursorHints on,
+ retransmit 1000 ms, turret dvars on, droppedWeaponsNeglectBots off, jump_carryMoverVelocity off,
+ isLookingAtOnDemand off).
+
+Deferred (5) - underlying feature absent in rev or risky subsystem work, NOT inert toggles:
+ - sv_botUseTriggerUse: needs custom_scr_const.bot_trigger (rev has no custom_scr_const infrastructure).
+ - sv_kickGamestateLimitedClients: needs customPlayerState.resourceLimitedState (absent; only a comment stub).
+ - sv_downloadNotifications: zk-added download start/complete notification messages (not present in rev).
+ - sv_downloadMessageAtMap: zk-added download message suppression for map files (not present in rev).
+ - g_brushModelCollisionTweaks: brush-model eFlags/contents changes on the snapshot/collision path (involved, higher risk).
 
 ## Tier 3 — each dvar is the tip of a whole subsystem (feature-port projects)
 - Proxy (16): sv_proxyEnable_1_0/1_2/1_3/1_3_119, sv_proxyAddress_*, sv_proxyForwardAddress_*,

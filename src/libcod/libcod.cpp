@@ -40,6 +40,14 @@ dvar_t *sv_updateCursorHints;
 dvar_t *sv_downloadRetransmitTimeout;
 dvar_t *scr_turretDamageName;
 dvar_t *g_turretMissingTagTerminalError;
+dvar_t *g_droppedWeaponsNeglectBots;
+dvar_t *jump_carryMoverVelocity;
+dvar_t *sv_isLookingAtOnDemand;
+dvar_t *sv_verifyIwds;
+dvar_t *sv_genericServerErrorMessage;
+dvar_t *g_noMoverBlockage;
+dvar_t *g_sendEmtpyOffhandEvents;
+int codecallback_moverblockage = 0;
 dvar_t *jump_bounceEnable;
 dvar_t *g_mantleBlockEnable;
 dvar_t *g_fixedWeaponSpreads;
@@ -84,6 +92,13 @@ void RegisterLibcodDvars()
 	sv_downloadRetransmitTimeout = Dvar_RegisterInt("sv_downloadRetransmitTimeout", 1000, 100, 10000, DVAR_ARCHIVE);
 	scr_turretDamageName = Dvar_RegisterBool("scr_turretDamageName", true, DVAR_CHANGEABLE_RESET);
 	g_turretMissingTagTerminalError = Dvar_RegisterBool("g_turretMissingTagTerminalError", true, DVAR_CHANGEABLE_RESET);
+	g_droppedWeaponsNeglectBots = Dvar_RegisterBool("g_droppedWeaponsNeglectBots", false, DVAR_ARCHIVE);
+	jump_carryMoverVelocity = Dvar_RegisterBool("jump_carryMoverVelocity", false, DVAR_CHEAT | DVAR_CODINFO | DVAR_CHANGEABLE_RESET);
+	sv_isLookingAtOnDemand = Dvar_RegisterBool("sv_isLookingAtOnDemand", false, DVAR_CHANGEABLE_RESET);
+	sv_verifyIwds = Dvar_RegisterBool("sv_verifyIwds", true, DVAR_ARCHIVE);
+	sv_genericServerErrorMessage = Dvar_RegisterBool("sv_genericServerErrorMessage", false, DVAR_ARCHIVE);
+	g_noMoverBlockage = Dvar_RegisterBool("g_noMoverBlockage", false, DVAR_CHANGEABLE_RESET);
+	g_sendEmtpyOffhandEvents = Dvar_RegisterBool("g_sendEmtpyOffhandEvents", true, DVAR_CHANGEABLE_RESET);
 
 	sv_master[0] = Dvar_RegisterString("sv_master1", MASTER_SERVER_NAME, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
 	sv_master[1] = Dvar_RegisterString("sv_master2", "", DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
@@ -124,6 +139,7 @@ void InitLibcodCallbacks()
 	codecallback_userinfochanged = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_UserInfoChanged", 0);
 	codecallback_fire_grenade = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_FireGrenade", 0);
 	codecallback_vid_restart = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_VidRestart", 0);
+	codecallback_moverblockage = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_MoverBlockage", 0);
 
 	if ( g_debugCallbacks && g_debugCallbacks->current.boolean )
 	{
@@ -132,6 +148,7 @@ void InitLibcodCallbacks()
 		if ( codecallback_userinfochanged ) Com_Printf("CodeCallback_UserInfoChanged found @ %p\n", scrVarPub.programBuffer + codecallback_userinfochanged);
 		if ( codecallback_fire_grenade )    Com_Printf("CodeCallback_FireGrenade found @ %p\n", scrVarPub.programBuffer + codecallback_fire_grenade);
 		if ( codecallback_vid_restart )     Com_Printf("CodeCallback_VidRestart found @ %p\n", scrVarPub.programBuffer + codecallback_vid_restart);
+		if ( codecallback_moverblockage )  Com_Printf("CodeCallback_MoverBlockage found @ %p\n", scrVarPub.programBuffer + codecallback_moverblockage);
 	}
 }
 
