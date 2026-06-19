@@ -3,6 +3,8 @@
 #include "com_files.h"
 #include "dvar.h"
 #include "../stringed/stringed_public.h"
+#include <unistd.h>
+#include <stdio.h>
 
 dvar_t* fs_debug;
 dvar_t* fs_copyfiles;
@@ -1491,6 +1493,42 @@ fileHandle_t FS_FOpenFileWrite(const char *filename)
 	}
 
 	return FS_GetHandleAndOpenFile(filename, ospath, "wb", FS_THREAD_MAIN);
+}
+
+// libcod: rotate console logs (name -> name.1 -> ... -> name.maxIndex), dropping the oldest.
+void FS_RotateLogfile(const char *filename, int maxIndex)
+{
+	char qname[MAX_OSPATH], oldpath[MAX_OSPATH], newpath[MAX_OSPATH];
+	int i;
+
+	if ( maxIndex <= 0 )
+		return;
+
+	for ( i = maxIndex; i > 0; i-- )
+	{
+		Com_sprintf(qname, sizeof(qname), "%s.%d", filename, i);
+		FS_BuildOSPath(fs_homepath->current.string, fs_gamedir, qname, oldpath);
+		if ( access(oldpath, F_OK) != 0 )
+			continue;
+		if ( i == maxIndex )
+		{
+			unlink(oldpath);
+		}
+		else
+		{
+			Com_sprintf(qname, sizeof(qname), "%s.%d", filename, i + 1);
+			FS_BuildOSPath(fs_homepath->current.string, fs_gamedir, qname, newpath);
+			rename(oldpath, newpath);
+		}
+	}
+
+	FS_BuildOSPath(fs_homepath->current.string, fs_gamedir, filename, oldpath);
+	if ( access(oldpath, F_OK) == 0 )
+	{
+		Com_sprintf(qname, sizeof(qname), "%s.1", filename);
+		FS_BuildOSPath(fs_homepath->current.string, fs_gamedir, qname, newpath);
+		rename(oldpath, newpath);
+	}
 }
 
 fileHandle_t FS_FOpenTextFileWrite(const char* filename)

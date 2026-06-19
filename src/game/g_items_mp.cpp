@@ -1069,11 +1069,13 @@ void Touch_Item( gentity_t *ent, gentity_t *other, qboolean touched )
 	if ( item->giType == IT_WEAPON )
 	{
 		weapDef = BG_GetWeaponDef(item->giTag);
-		G_LogPrintf("Weapon;%d;%d;%s;%s\n", SV_GetGuid(other->s.number), other->s.number, cleanname, weapDef->szInternalName);
+		if ( g_logPickup->current.boolean )
+			G_LogPrintf("Weapon;%d;%d;%s;%s\n", SV_GetGuid(other->s.number), other->s.number, cleanname, weapDef->szInternalName);
 	}
 	else
 	{
-		G_LogPrintf("Item;%d;%d;%s;%s\n", SV_GetGuid(other->s.number), other->s.number, cleanname, item->classname);
+		if ( g_logPickup->current.boolean )
+			G_LogPrintf("Item;%d;%d;%s;%s\n", SV_GetGuid(other->s.number), other->s.number, cleanname, item->classname);
 	}
 
 	// call the item-specific pickup function

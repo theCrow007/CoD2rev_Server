@@ -41,6 +41,29 @@ void gsc_utils_getarraykeys()
 	}
 }
 
+// libcod: con_coloredPrints — translate Q3/CoD ^N color codes to ANSI escapes on stdout.
+static void Sys_AnsiColorPrint(const char *msg)
+{
+	static char buffer[MAXPRINTMSG];
+	int length = 0;
+	static const int q3ToAnsi[8] = { 30, 31, 32, 33, 34, 36, 35, 0 };
+	while ( *msg )
+	{
+		if ( Q_IsColorString(msg) || *msg == '\n' )
+		{
+			if ( length > 0 ) { buffer[length] = '\0'; fputs(buffer, stdout); length = 0; }
+			if ( *msg == '\n' ) { fputs("\033[0m\n", stdout); msg++; }
+			else { snprintf(buffer, sizeof(buffer), "\033[1;%dm", q3ToAnsi[ColorIndex(*(msg + 1))]); fputs(buffer, stdout); msg += 2; }
+		}
+		else
+		{
+			if ( length >= MAXPRINTMSG - 1 ) break;
+			buffer[length++] = *msg++;
+		}
+	}
+	if ( length > 0 ) { buffer[length] = '\0'; fputs(buffer, stdout); fputs("\033[0m", stdout); }
+}
+
 void gsc_utils_printf()
 {
 	char result[COD2_MAX_STRINGLENGTH];
@@ -106,7 +129,10 @@ void gsc_utils_printf()
 	}
 
 	result[num] = '\0';
-	Com_Printf(result);
+	if ( con_coloredPrints && con_coloredPrints->current.boolean )
+		Sys_AnsiColorPrint(result);
+	else
+		Com_Printf("%s", result);
 	stackPushBool(qtrue);
 }
 

@@ -16,6 +16,30 @@ dvar_t *sv_downloadMessage;
 dvar_t *sv_fastDownload;
 dvar_t *sv_cracked;
 dvar_t *sv_kickbots;
+dvar_t *sv_kickMessages;
+dvar_t *sv_botKickMessages;
+dvar_t *sv_disconnectMessages;
+dvar_t *sv_timeoutMessages;
+dvar_t *sv_wwwDlDisconnectedMessages;
+dvar_t *sv_logRcon;
+dvar_t *logTimestamps;
+dvar_t *logfileName;
+dvar_t *sv_logHeartbeats;
+dvar_t *g_logPickup;
+dvar_t *logErrors;
+dvar_t *con_coloredPrints;
+dvar_t *logfileRotate;
+dvar_t *g_debugCallbacks;
+dvar_t *g_debugEvents;
+dvar_t *g_debugStaticModels;
+dvar_t *g_forceRate;
+dvar_t *g_forceSnaps;
+dvar_t *sv_limitLocalRcon;
+dvar_t *g_resetSlide;
+dvar_t *sv_updateCursorHints;
+dvar_t *sv_downloadRetransmitTimeout;
+dvar_t *scr_turretDamageName;
+dvar_t *g_turretMissingTagTerminalError;
 dvar_t *jump_bounceEnable;
 dvar_t *g_mantleBlockEnable;
 dvar_t *g_fixedWeaponSpreads;
@@ -34,6 +58,33 @@ int client_challenge_ping[MAX_CLIENTS] = {0};
 
 void RegisterLibcodDvars()
 {
+	// Read-only flag so scripts can detect libcod via getDvar("libcod").
+	Dvar_RegisterBool("libcod", true, DVAR_ROM);
+	sv_kickMessages = Dvar_RegisterBool("sv_kickMessages", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_botKickMessages = Dvar_RegisterBool("sv_botKickMessages", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_disconnectMessages = Dvar_RegisterBool("sv_disconnectMessages", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_timeoutMessages = Dvar_RegisterBool("sv_timeoutMessages", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_wwwDlDisconnectedMessages = Dvar_RegisterBool("sv_wwwDlDisconnectedMessages", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_logRcon = Dvar_RegisterBool("sv_logRcon", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	logTimestamps = Dvar_RegisterBool("logTimestamps", false, DVAR_ARCHIVE);
+	logfileName = Dvar_RegisterString("logfileName", "", DVAR_ARCHIVE); // "" -> stock default name
+	sv_logHeartbeats = Dvar_RegisterBool("sv_logHeartbeats", true, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	g_logPickup = Dvar_RegisterBool("g_logPickup", true, DVAR_CHANGEABLE_RESET);
+	logErrors = Dvar_RegisterBool("logErrors", false, DVAR_ARCHIVE);
+	con_coloredPrints = Dvar_RegisterBool("con_coloredPrints", false, DVAR_ARCHIVE);
+	logfileRotate = Dvar_RegisterInt("logfileRotate", 0, 0, 1000, DVAR_ARCHIVE);
+	g_debugCallbacks = Dvar_RegisterBool("g_debugCallbacks", false, DVAR_CHANGEABLE_RESET);
+	g_debugEvents = Dvar_RegisterBool("g_debugEvents", false, DVAR_CHANGEABLE_RESET);
+	g_debugStaticModels = Dvar_RegisterBool("g_debugStaticModels", false, DVAR_CHANGEABLE_RESET);
+	g_forceRate = Dvar_RegisterInt("g_forceRate", 0, 0, 100000, DVAR_ARCHIVE);
+	g_forceSnaps = Dvar_RegisterInt("g_forceSnaps", 0, 0, 1000, DVAR_ARCHIVE);
+	sv_limitLocalRcon = Dvar_RegisterBool("sv_limitLocalRcon", false, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	g_resetSlide = Dvar_RegisterBool("g_resetSlide", false, DVAR_CHANGEABLE_RESET);
+	sv_updateCursorHints = Dvar_RegisterBool("sv_updateCursorHints", true, DVAR_CHANGEABLE_RESET);
+	sv_downloadRetransmitTimeout = Dvar_RegisterInt("sv_downloadRetransmitTimeout", 1000, 100, 10000, DVAR_ARCHIVE);
+	scr_turretDamageName = Dvar_RegisterBool("scr_turretDamageName", true, DVAR_CHANGEABLE_RESET);
+	g_turretMissingTagTerminalError = Dvar_RegisterBool("g_turretMissingTagTerminalError", true, DVAR_CHANGEABLE_RESET);
+
 	sv_master[0] = Dvar_RegisterString("sv_master1", MASTER_SERVER_NAME, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
 	sv_master[1] = Dvar_RegisterString("sv_master2", "", DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
 	sv_master[2] = Dvar_RegisterString("sv_master3", "", DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
@@ -73,6 +124,15 @@ void InitLibcodCallbacks()
 	codecallback_userinfochanged = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_UserInfoChanged", 0);
 	codecallback_fire_grenade = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_FireGrenade", 0);
 	codecallback_vid_restart = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_VidRestart", 0);
+
+	if ( g_debugCallbacks && g_debugCallbacks->current.boolean )
+	{
+		if ( codecallback_playercommand )   Com_Printf("CodeCallback_PlayerCommand found @ %p\n", scrVarPub.programBuffer + codecallback_playercommand);
+		if ( codecallback_remotecommand )   Com_Printf("CodeCallback_RemoteCommand found @ %p\n", scrVarPub.programBuffer + codecallback_remotecommand);
+		if ( codecallback_userinfochanged ) Com_Printf("CodeCallback_UserInfoChanged found @ %p\n", scrVarPub.programBuffer + codecallback_userinfochanged);
+		if ( codecallback_fire_grenade )    Com_Printf("CodeCallback_FireGrenade found @ %p\n", scrVarPub.programBuffer + codecallback_fire_grenade);
+		if ( codecallback_vid_restart )     Com_Printf("CodeCallback_VidRestart found @ %p\n", scrVarPub.programBuffer + codecallback_vid_restart);
+	}
 }
 
 static void Com_Assert_f( void )

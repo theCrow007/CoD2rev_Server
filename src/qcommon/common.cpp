@@ -713,10 +713,17 @@ void Com_PrintMessage( conChannel_t channel, const char *msg )
 			newtime = localtime( &aclock );
 
 #ifdef DEDICATED
-			logfile = FS_FOpenTextFileWrite( "console_mp_server.log" );
+			const char *defaultLogName = "console_mp_server.log";
 #else
-			logfile = FS_FOpenTextFileWrite( "console_mp.log" );
+			const char *defaultLogName = "console_mp.log";
 #endif
+			// libcod: logfileName dvar overrides the name; empty or dot-dot falls back to stock.
+			const char *logName = (logfileName && logfileName->current.string) ? logfileName->current.string : "";
+			if ( !logName[0] || strstr(logName, "..") )
+				logName = defaultLogName;
+			if ( logfileRotate && logfileRotate->current.integer > 0 )
+				FS_RotateLogfile( logName, logfileRotate->current.integer );
+			logfile = FS_FOpenTextFileWrite( logName );
 			Com_Printf( "logfile opened on %s\n", asctime( newtime ) );
 
 			opening_qconsole = qfalse;
@@ -724,7 +731,20 @@ void Com_PrintMessage( conChannel_t channel, const char *msg )
 
 		if ( logfile )
 		{
-			FS_Write(msg, strlen(msg), logfile);
+			// libcod: logTimestamps dvar prepends a timestamp to each logged message.
+			if ( logTimestamps && logTimestamps->current.boolean && msg[0] && strcmp(msg, " ") != 0 )
+			{
+				char timed[0x2000];
+				time_t t; struct tm *ti; const char *ts;
+				time(&t); ti = localtime(&t); ts = asctime(ti);
+				Com_sprintf(timed, sizeof(timed), "%s%s", ts, msg);
+				timed[strlen(ts) - 1] = ' '; // replace asctime trailing newline with a space
+				FS_Write(timed, strlen(timed), logfile);
+			}
+			else
+			{
+				FS_Write(msg, strlen(msg), logfile);
+			}
 
 			if ( com_logfile->current.integer > 1 )
 				FS_Flush(logfile);

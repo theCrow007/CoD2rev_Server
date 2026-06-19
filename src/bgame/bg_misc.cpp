@@ -120,6 +120,12 @@ void BG_AddPredictableEventToPlayerstate( int newEvent, int eventParm, playerSta
 	}
 
 #ifdef LIBCOD
+	// zk_libcod: g_debugEvents - log every predictable event (number; name table is file-local)
+	{
+		extern dvar_t *g_debugEvents;
+		if ( g_debugEvents && g_debugEvents->current.boolean )
+			Com_DPrintf("BG_AddPredictableEventToPlayerstate() event %d for client %d\n", newEvent, ps->clientNum);
+	}
 	// zk_libcod: silent feature - suppress footstep/foliage/noammo sounds
 	{
 		extern qboolean zk_IsPlayerSilent(int clientNum);

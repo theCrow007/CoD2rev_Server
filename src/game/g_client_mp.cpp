@@ -608,7 +608,11 @@ void G_GetPlayerViewOrigin( gentity_t *ent, vec3_t origin )
 	{
 		if ( !G_DObjGetWorldTagPos(&g_entities[client->ps.viewlocked_entNum], scr_const.tag_player, origin) )
 		{
-			Com_Error(ERR_DROP, "G_GetPlayerViewOrigin: Couldn't find [tag_player] on turret");
+			// libcod: g_turretMissingTagTerminalError - terminal error (default) vs non-fatal warning
+			if ( g_turretMissingTagTerminalError->current.boolean )
+				Com_Error(ERR_DROP, "G_GetPlayerViewOrigin: Couldn't find [tag_player] on turret");
+			else
+				Com_Printf("WARNING: G_GetPlayerViewOrigin: missing [tag_player] on turret for client %d\n", (int)(ent - g_entities));
 		}
 
 		return;

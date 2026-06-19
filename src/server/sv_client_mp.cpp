@@ -338,6 +338,12 @@ void SV_UserinfoChanged( client_t *cl )
 	// wwwdl command
 	val = Info_ValueForKey (cl->userinfo, "cl_wwwDownload");
 	cl->wwwOk = atoi(val) > 0;
+
+	// libcod: g_forceSnaps / g_forceRate override the client's requested values
+	if ( g_forceSnaps && g_forceSnaps->current.integer > 0 )
+		cl->snapshotMsec = 1000 / g_forceSnaps->current.integer;
+	if ( g_forceRate && g_forceRate->current.integer > 1000 )
+		cl->rate = g_forceRate->current.integer;
 }
 
 /*
@@ -563,14 +569,30 @@ void SV_DropClient( client_t *drop, const char *reason )
 		}
 	}
 
-	// tell everyone why they got dropped
-	if ( I_stricmp(reason, "EXE_DISCONNECTED") )
+	// tell everyone why they got dropped (libcod: gated by sv_*Messages dvars)
 	{
-		// VoroN: another stock bug fix for broken disconnect msg due to absence of localizedstrings
-		if ( !I_strnicmp(reason, "EXE", 3) || !I_strnicmp(reason, "GAME", 4) || !I_strnicmp(reason, "PC", 2) )
-			SV_SendServerCommand(NULL, SV_CMD_CAN_IGNORE, "%c \"\x15%s^7 %s%s\"\0", 101, name, "\x14", reason);
-		else
-			SV_SendServerCommand(NULL, SV_CMD_CAN_IGNORE, "%c \"\x15%s^7 %s\"\0", 101, name, reason);
+		qboolean isBot = (drop->netchan.remoteAddress.type == NA_BOT);
+		qboolean showIngameMessage = qtrue;
+
+		if ( isBot && !sv_botKickMessages->current.boolean && ( I_stricmp(reason, "EXE_DISCONNECTED") == 0 || I_stricmp(reason, "EXE_PLAYERKICKED") == 0 ) )
+			showIngameMessage = qfalse;
+		if ( !sv_kickMessages->current.boolean && I_stricmp(reason, "EXE_PLAYERKICKED") == 0 )
+			showIngameMessage = qfalse; // overrides enabled sv_botKickMessages
+		if ( !sv_timeoutMessages->current.boolean && I_stricmp(reason, "EXE_TIMEDOUT") == 0 )
+			showIngameMessage = qfalse;
+		if ( !sv_disconnectMessages->current.boolean && I_stricmp(reason, "EXE_DISCONNECTED") == 0 )
+			showIngameMessage = qfalse;
+		if ( !sv_wwwDlDisconnectedMessages->current.boolean && I_stricmp(reason, "PC_PATCH_1_1_DOWNLOADDISCONNECTED") == 0 )
+			showIngameMessage = qfalse;
+
+		if ( showIngameMessage )
+		{
+			// VoroN: stock bug fix for broken disconnect msg due to absence of localizedstrings
+			if ( !I_strnicmp(reason, "EXE", 3) || !I_strnicmp(reason, "GAME", 4) || !I_strnicmp(reason, "PC", 2) )
+				SV_SendServerCommand(NULL, SV_CMD_CAN_IGNORE, "%c \"\x15%s^7 %s%s\"\0", 101, name, "\x14", reason);
+			else
+				SV_SendServerCommand(NULL, SV_CMD_CAN_IGNORE, "%c \"\x15%s^7 %s\"\0", 101, name, reason);
+		}
 	}
 
 	assert(drop - svs.clients >= 0 && drop - svs.clients < MAX_CLIENTS);
@@ -1352,7 +1374,7 @@ void SV_WriteDownloadToClient( client_t *cl, msg_t *msg )
 
 			//FIXME:  This uses a hardcoded one second timeout for lost blocks
 			//the timeout should be based on client rate somehow
-			if (svs.time - cl->downloadSendTime > 1000)
+			if (svs.time - cl->downloadSendTime > sv_downloadRetransmitTimeout->current.integer) // libcod: was hardcoded 1000
 				cl->downloadXmitBlock = cl->downloadClientBlock;
 			else
 				return;

@@ -57,6 +57,14 @@ static bool CM_CreateStaticModel( cStaticModel_t *staticModel, const char *name,
 	staticModel->xmodel = model;
 	CM_InitStaticModel(staticModel, origin, angles, scale);
 
+#ifdef LIBCOD
+	{
+		extern dvar_t *g_debugStaticModels;
+		if ( g_debugStaticModels && g_debugStaticModels->current.boolean )
+			Com_Printf("Initialized static model [%s] with scale (%f, %f, %f) at (%f, %f, %f)\n", name, scale[0], scale[1], scale[2], origin[0], origin[1], origin[2]);
+	}
+#endif
+
 	return true;
 }
 

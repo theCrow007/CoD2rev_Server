@@ -706,6 +706,13 @@ void RuntimeError( const char *codePos, unsigned int index, const char *msg, con
 
 		if ( !scrVmPub.terminal_error )
 		{
+#ifdef LIBCOD
+			// libcod: logErrors logs non-terminal script errors to the logfile even when
+			// developer mode is off. Safe: when !developer, Scr_PrintPrevCodePos prints only a
+			// bytecode offset, not the developer-only source lookup. Skipped while loading.
+			if ( logErrors && logErrors->current.boolean && !scrVmGlob.loading )
+				RuntimeErrorInternal(CON_CHANNEL_LOGFILEONLY, codePos, index, msg);
+#endif
 			return;
 		}
 	}

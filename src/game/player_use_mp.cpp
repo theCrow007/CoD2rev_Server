@@ -199,6 +199,10 @@ void Player_UpdateCursorHints( gentity_t *ent )
 	ps->cursorHintString = -1;
 	ps->cursorHintEntIndex = ENTITYNUM_NONE;
 
+	// libcod: sv_updateCursorHints - when off, leave hints cleared and skip computation
+	if ( sv_updateCursorHints && !sv_updateCursorHints->current.boolean )
+		return;
+
 	// dead
 	if ( ent->health <= 0 )
 	{

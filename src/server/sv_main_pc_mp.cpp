@@ -57,18 +57,22 @@ void SVC_RemoteCommand( netadr_t from, msg_t *msg )
 
 #if LIBCOD_COMPILE_RATELIMITER == 1
 	static leakyBucket_t bucket;
-	// Prevent using rcon as an amplifier and make dictionary attacks impractical
-	if ( SVC_RateLimitAddress( from, 10, 1000 ) )
+	// libcod: sv_limitLocalRcon - skip rcon rate limiting for loopback unless forced on
+	if ( sv_limitLocalRcon->current.boolean || !NET_IsLocalAddress( from ) )
 	{
-		Com_DPrintf( "SVC_RemoteCommand: rate limit from %s exceeded, dropping request\n", NET_AdrToString( from ) );
-		return;
-	}
+		// Prevent using rcon as an amplifier and make dictionary attacks impractical
+		if ( SVC_RateLimitAddress( from, 10, 1000 ) )
+		{
+			Com_DPrintf( "SVC_RemoteCommand: rate limit from %s exceeded, dropping request\n", NET_AdrToString( from ) );
+			return;
+		}
 
-	// Make DoS via rcon impractical
-	if ( SVC_RateLimit( &bucket, 10, 1000 ) )
-	{
-		Com_DPrintf( "SVC_RemoteCommand: rate limit exceeded, dropping request\n" );
-		return;
+		// Make DoS via rcon impractical
+		if ( SVC_RateLimit( &bucket, 10, 1000 ) )
+		{
+			Com_DPrintf( "SVC_RemoteCommand: rate limit exceeded, dropping request\n" );
+			return;
+		}
 	}
 #endif
 
@@ -91,7 +95,8 @@ void SVC_RemoteCommand( netadr_t from, msg_t *msg )
 	else
 	{
 		valid = qtrue;
-		Com_Printf( "Rcon from %s:\n%s\n", NET_AdrToString( from ), Cmd_Argv( 2 ) );
+		if ( sv_logRcon->current.boolean )
+			Com_Printf( "Rcon from %s:\n%s\n", NET_AdrToString( from ), Cmd_Argv( 2 ) );
 	}
 
 #ifdef LIBCOD
@@ -242,7 +247,8 @@ void SV_MasterHeartbeat( const char *hbname )
 
 		if ( adr->type != NA_BAD )
 		{
-			Com_Printf("Sending heartbeat to %s\n", MASTER_SERVER_NAME);
+			if ( sv_logHeartbeats->current.boolean )
+				Com_Printf("Sending heartbeat to %s\n", MASTER_SERVER_NAME);
 			NET_OutOfBandPrint(NS_SERVER, *adr, va("heartbeat %s\n", hbname));
 		}
 	}

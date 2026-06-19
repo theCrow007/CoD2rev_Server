@@ -326,6 +326,12 @@ void Jump_Start( pmove_t *pm, pml_t *pml, float height )
 	ps->groundEntityNum = ENTITYNUM_NONE;
 	ps->jumpTime = pm->cmd.serverTime;
 	ps->jumpOriginZ = ps->origin[2];
+	// libcod: g_resetSlide clears slide-related pm_flags (mask 0x180) on jump
+	{
+		extern dvar_t *g_resetSlide;
+		if ( g_resetSlide && g_resetSlide->current.boolean )
+			ps->pm_flags &= 0xFFFFFE7F;
+	}
 	ps->pm_flags |= PMF_TIME_LAND;
 	ps->pm_time = 0;
 	ps->velocity[2] = I_sqrt(velocitySqrd);
