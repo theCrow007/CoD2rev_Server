@@ -61,6 +61,19 @@ dvar_t *sv_noauthorize;
 dvar_t *sv_masterServer;
 dvar_t *sv_masterPort;
 dvar_t *sv_downloadMessageForLegacyClients;
+dvar_t *fs_gametypes;
+dvar_t *fs_callbacks;
+dvar_t *fs_mapScriptDirectories;
+dvar_t *fs_replaceStockMaps;
+dvar_t *g_brushModelCollisionTweaks;
+dvar_t *sv_fastDownloadSpeed;
+dvar_t *sv_autoAddSnapshotEntities;
+dvar_t *g_triggerMode;
+dvar_t *g_reservedModels;
+dvar_t *g_safePrecache;
+dvar_t *g_pointTraceMovement;
+dvar_t *sv_botUseTriggerUse;
+unsigned short scr_const_bot_trigger;
 dvar_t *sv_genericServerErrorMessage;
 dvar_t *g_noMoverBlockage;
 dvar_t *g_sendEmtpyOffhandEvents;
@@ -129,6 +142,18 @@ void RegisterLibcodDvars()
 	sv_masterServer = Dvar_RegisterString("sv_masterServer", MASTER_SERVER_NAME, DVAR_ARCHIVE | DVAR_LATCH);
 	sv_masterPort = Dvar_RegisterInt("sv_masterPort", PORT_MASTER, 0, 65535, DVAR_ARCHIVE | DVAR_LATCH);
 	sv_downloadMessageForLegacyClients = Dvar_RegisterString("sv_downloadMessageForLegacyClients", "", DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	fs_gametypes = Dvar_RegisterString("fs_gametypes", "", DVAR_ARCHIVE);
+	fs_callbacks = Dvar_RegisterString("fs_callbacks", "", DVAR_ARCHIVE);
+	fs_mapScriptDirectories = Dvar_RegisterInt("fs_mapScriptDirectories", 0, 0, 2, DVAR_ARCHIVE);
+	fs_replaceStockMaps = Dvar_RegisterBool("fs_replaceStockMaps", false, DVAR_ARCHIVE);
+	g_brushModelCollisionTweaks = Dvar_RegisterBool("g_brushModelCollisionTweaks", true, DVAR_CHANGEABLE_RESET);
+	sv_fastDownloadSpeed = Dvar_RegisterInt("sv_fastDownloadSpeed", MAX_DOWNLOAD_WINDOW, 1, MAX_DOWNLOAD_WINDOW, DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET);
+	sv_autoAddSnapshotEntities = Dvar_RegisterBool("sv_autoAddSnapshotEntities", true, DVAR_CHANGEABLE_RESET);
+	g_triggerMode = Dvar_RegisterInt("g_triggerMode", 1, 0, 2, DVAR_CHANGEABLE_RESET);
+	g_reservedModels = Dvar_RegisterInt("g_reservedModels", 0, 0, 255, DVAR_ARCHIVE | DVAR_LATCH);
+	g_safePrecache = Dvar_RegisterBool("g_safePrecache", false, DVAR_ARCHIVE | DVAR_LATCH);
+	g_pointTraceMovement = Dvar_RegisterBool("g_pointTraceMovement", false, DVAR_CHANGEABLE_RESET);
+	sv_botUseTriggerUse = Dvar_RegisterBool("sv_botUseTriggerUse", false, DVAR_CHANGEABLE_RESET);
 	sv_genericServerErrorMessage = Dvar_RegisterBool("sv_genericServerErrorMessage", false, DVAR_ARCHIVE);
 	g_noMoverBlockage = Dvar_RegisterBool("g_noMoverBlockage", false, DVAR_CHANGEABLE_RESET);
 	g_sendEmtpyOffhandEvents = Dvar_RegisterBool("g_sendEmtpyOffhandEvents", true, DVAR_CHANGEABLE_RESET);
@@ -167,12 +192,15 @@ void RegisterLibcodDvars()
 
 void InitLibcodCallbacks()
 {
-	codecallback_playercommand = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_PlayerCommand", 0);
-	codecallback_remotecommand = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_RemoteCommand", 0);
-	codecallback_userinfochanged = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_UserInfoChanged", 0);
-	codecallback_fire_grenade = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_FireGrenade", 0);
-	codecallback_vid_restart = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_VidRestart", 0);
-	codecallback_moverblockage = GScr_LoadScriptAndLabel("maps/mp/gametypes/_callbacksetup", "CodeCallback_MoverBlockage", 0);
+	char path_to_callbacks[64] = "maps/mp/gametypes/_callbacksetup";
+	if ( fs_callbacks && *fs_callbacks->current.string )
+		Com_sprintf(path_to_callbacks, sizeof(path_to_callbacks), "%s", fs_callbacks->current.string);
+	codecallback_playercommand = GScr_LoadScriptAndLabel(path_to_callbacks, "CodeCallback_PlayerCommand", 0);
+	codecallback_remotecommand = GScr_LoadScriptAndLabel(path_to_callbacks, "CodeCallback_RemoteCommand", 0);
+	codecallback_userinfochanged = GScr_LoadScriptAndLabel(path_to_callbacks, "CodeCallback_UserInfoChanged", 0);
+	codecallback_fire_grenade = GScr_LoadScriptAndLabel(path_to_callbacks, "CodeCallback_FireGrenade", 0);
+	codecallback_vid_restart = GScr_LoadScriptAndLabel(path_to_callbacks, "CodeCallback_VidRestart", 0);
+	codecallback_moverblockage = GScr_LoadScriptAndLabel(path_to_callbacks, "CodeCallback_MoverBlockage", 0);
 
 	if ( g_debugCallbacks && g_debugCallbacks->current.boolean )
 	{
@@ -305,6 +333,10 @@ void manymaps_prepare(const char *mapname, int read)
 	}
 
 	closedir(dir);
+
+	// libcod: fs_replaceStockMaps - don't override a stock map with a library copy unless enabled
+	if (map_found && (!fs_replaceStockMaps || !fs_replaceStockMaps->current.boolean))
+		return;
 
 	if (map_exists)
 	{

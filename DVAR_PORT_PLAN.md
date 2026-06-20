@@ -1,6 +1,6 @@
 # zk_libcod dvar port plan (rev / CoD2rev_Server)
 
-Coverage: **72 of 91 zk dvars ported** (19 remain). Tier 1 complete; Tiers 2/3 wired wherever a real rev site exists.
+Coverage: **81 of 91 zk dvars ported** (10 remain). Tier 1 complete; Tiers 2/3 wired wherever a real rev site exists.
 
 Tier 1 COMPLETE (17 dvars, all wired):
  messages: sv_kickMessages, sv_botKickMessages, sv_disconnectMessages, sv_timeoutMessages,
@@ -136,3 +136,108 @@ Remaining 19: manymaps fs (6, real subsystem); absent infra (6: sv_kickGamestate
  sv_botUseTriggerUse, g_safePrecache, g_reservedModels, sv_reservedConfigstringBufferSize, g_pointTraceMovement);
  awkward/risky (5: net_noFragmentationDelay, g_brushModelCollisionTweaks, g_triggerMode, sv_fastDownloadSpeed,
  sv_autoAddSnapshotEntities); client-only (2: cl_allowDownload, cl_wwwDownload, handled via sv_minimizeSysteminfo).
+
+## Update: manymaps (4 of 6 wired)
+Surprise: rev ALREADY had the manymaps symlink machinery (manymaps_prepare + hook_findMap in libcod.cpp,
+hooked at SV_Map_f). So this was mostly wiring, not a 200-line port.
+ fs_gametypes (string): redirect the gametype script search path; wired in the gametype list scanner and
+   GScr_LoadGameTypeScript (g_scr_main_mp.cpp). Default "" = maps/mp/gametypes.
+ fs_callbacks (string): redirect the _callbacksetup path; wired in GScr_LoadGameTypeScript AND
+   InitLibcodCallbacks (libcod.cpp). Default "" = maps/mp/gametypes/_callbacksetup.
+ fs_mapScriptDirectories (int 0-2): level script location - 0: maps/mp/<map>.gsc; 1: maps/mp/<map>/<map>.gsc;
+   2: the subdir then fall back. Wired in GScr_LoadLevelScript. Default 0 = stock.
+ fs_replaceStockMaps (bool): gate the stock-map override in rev's existing manymaps_prepare. Default false
+   (zk parity). BEHAVIOR NOTE: rev previously ALWAYS overrode stock maps present in the library; now it only
+   does so when fs_replaceStockMaps=1.
+Deferred (2):
+ sv_version: architectural mismatch - rev determines protocol at COMPILE time (#if PROTOCOL_VERSION); zk uses
+   a runtime version string. No clean runtime role in rev without reworking its protocol model. (The legacy
+   download-message + verify paths already use rev's cl->netchan.protocol instead.)
+ loc_loadLocalizedMods: rev's localized-iwd handling (FS_IwdIsPure is a pure-checksum check; localized iwds
+   handled in FS_AddIwdFilesForGameDirectory) doesn't expose the zk decision point cleanly; niche feature.
+Remaining 15: those 2 + absent-infra (6: sv_kickGamestateLimitedClients, sv_botUseTriggerUse, g_safePrecache,
+ g_reservedModels, sv_reservedConfigstringBufferSize, g_pointTraceMovement); awkward (5: net_noFragmentationDelay,
+ g_brushModelCollisionTweaks, g_triggerMode, sv_fastDownloadSpeed, sv_autoAddSnapshotEntities);
+ client-only (2: cl_allowDownload, cl_wwwDownload).
+
+## Update: re-audit of the 5 "awkward" dvars (4 of 5 were misjudged -> now wired)
+The auth/master + manymaps pattern held again: "needs a subsystem / too risky" mostly meant rev already had
+the infrastructure.
+ g_brushModelCollisionTweaks (gsc_zk_entity.cpp): NOT snapshot serialization (earlier claim wrong) - it just
+   gates the notSolidForPlayer/solidForPlayer methods rev already has. Gate added at the start of both (skip the
+   customEntityState change + push qfalse when off). Default TRUE to preserve rev's current always-on behavior
+   (zk default is false; set 0 to match zk / disable the feature, which has documented side effects).
+ sv_fastDownloadSpeed (sv_snapshot_mp.cpp:950): rev's fast-download path loops MAX_DOWNLOAD_WINDOW times in
+   SendClientMessages; replaced that bound with the dvar. Default 8 (== MAX_DOWNLOAD_WINDOW), min 1, max 8 (the
+   msg-len cap), so default = no change. (This was the right site; my earlier "blockspersnap, different
+   mechanism" note was looking at the wrong line.)
+ sv_autoAddSnapshotEntities (sv_snapshot_mp.cpp:2107): rev already has the script-side force-add block
+   (zk_GetForcedSnapshotCount/Ent) right after the visible-add. Gated the SV_AddEntitiesVisibleFromPoint auto-add
+   with `(dvar->boolean || svs.archiveEnabled)`. Default true = rev behavior; false (archive off) leaves snapshot
+   population to script (addEntToSnapshots etc.). SV_AddEntitiesAsDefined was NOT needed - rev's force-add covers it.
+ g_triggerMode (cm_world.cpp CM_AreaEntities): modes 0/1/2 for the damage-trigger fix. Ported the tiny
+   TriggerDamageEntities (15 lines, collects scr_const.trigger_damage ents from slot 72+) and gated by
+   contentmask (0x400000 / 0x405C0008). Added `#include "../game/g_shared.h"` (cross-layer access to
+   g_entities/scr_const/level verified via single-TU compile). Default 1 = stock, no change.
+Deferred (1 of the 5):
+ net_noFragmentationDelay: genuinely INERT in rev. rev's LIBCOD SendClientMessages already flushes ALL pending
+   fragments per frame (its `while (unsentFragments) TransmitNextFragment` loop runs unconditionally); the
+   one-fragment-per-frame stock behavior only exists in the non-LIBCOD #else path. So the dvar would gate nothing.
+
+## Remaining 11
+ net_noFragmentationDelay (inert - see above)
+ sv_version (architectural - rev compile-time PROTOCOL_VERSION vs zk runtime string)
+ loc_loadLocalizedMods (rev localized-iwd handling differs; no clean decision point; niche)
+ cl_allowDownload, cl_wwwDownload (client-only; server-side effect already covered by sv_minimizeSysteminfo mode 3)
+ absent-infra (6, would be real feature ports of the missing struct/fn first):
+   g_pointTraceMovement (G_TracePoint absent; rev only has G_TraceCapsule)
+   g_reservedModels + g_safePrecache (cached_models + precache-slot reservation absent)
+   sv_botUseTriggerUse (custom_scr_const infra absent)
+   sv_kickGamestateLimitedClients (customPlayerState.resourceLimitedState absent)
+   sv_reservedConfigstringBufferSize (configstring buffer reservation absent)
+
+## Update: sv_botUseTriggerUse (the "custom_scr_const" item) - done WITHOUT the registry
+custom_scr_const looked like a whole script-constant-registry subsystem, but sv_botUseTriggerUse needs exactly
+ONE constant ("bot_trigger"). Allocated it as a single standalone global scr_const_bot_trigger (NOT a struct
+field -> no engine-offset risk), allocated in scr_const_mp.cpp alongside the stock consts. Wired the notify in
+Player_UpdateCursorHints (player_use_mp.cpp): when a usable trigger (trigger_use/trigger_use_touch) is faced by
+a bot (svs.clients[ent->s.number].bIsTestClient) and sv_botUseTriggerUse is on, Scr_AddEntity(trigger) +
+Scr_Notify(bot, scr_const_bot_trigger, 1) so bot scripts can react. Cross-layer svs access from the game TU
+verified by single-TU compile. Default false (no behavior change).
+
+## Remaining 10
+ net_noFragmentationDelay (inert - rev already flushes all fragments per frame)
+ sv_version (architectural - rev compile-time PROTOCOL_VERSION)
+ loc_loadLocalizedMods (rev localized-iwd handling differs; niche)
+ cl_allowDownload, cl_wwwDownload (client-only; server effect covered by sv_minimizeSysteminfo mode 3)
+ g_pointTraceMovement (needs G_TracePoint; rev only has G_TraceCapsule)
+ g_reservedModels + g_safePrecache (need cached_models + precache-slot reservation)
+ sv_kickGamestateLimitedClients (needs customPlayerState.resourceLimitedState)
+ sv_reservedConfigstringBufferSize (needs configstring buffer reservation)
+
+## Update: absent-infra audit (the pattern held one more time)
+Checked rev for each "absent infra" item before assuming a port was needed:
+ sv_botUseTriggerUse: ALREADY COMPLETE in rev (was miscounted in the gap). rev implemented the whole feature
+   with a single scr_const_bot_trigger (GScr_AllocString "bot_trigger") instead of zk's full custom_scr_const
+   struct - storage, registration (libcod.cpp:150), extern, and the player_use_mp.cpp notify logic all present.
+ g_reservedModels + g_safePrecache (g_utils_mp.cpp G_ModelIndex): rev already had cached_models[MAX_MODELS] and
+   a G_ModelIndex structured exactly like zk's. g_reservedModels: limit = MAX_MODELS - reserved during
+   level.initializing (default 0 = MAX_MODELS = no change; safe opt-in). g_safePrecache: turn the two fatal
+   paths (Scr_Error "not precached", Com_Error overflow) into warning + default model 1 (default false =
+   rev's fatal behavior). Skipped zk's Scr_CodeCallback_Error (absent) + FX configstring-847 refinement.
+   Note: zk also gates reservation on a `precaching` flag rev lacks; default 0 makes that moot.
+ g_pointTraceMovement (g_main_mp.cpp): rev already had the pmoveHandlers[] indirection (bgame) AND
+   G_LocationalTrace (== zk's G_TracePoint body). Added G_TracePoint (G_TraceCapsule signature, vec3_origin
+   bounds), declared it in g_shared.h, and swap pmoveHandlers[1].trace each frame in G_RunFrame. Default
+   false = G_TraceCapsule = rev behavior.
+
+## Remaining 7 (all genuinely blocked or inapplicable)
+ net_noFragmentationDelay - INERT: rev's SendClientMessages already flushes all fragments per frame.
+ sv_version - architectural: rev decides protocol at compile time (#if PROTOCOL_VERSION).
+ loc_loadLocalizedMods - niche; rev's localized-iwd handling exposes no clean decision point.
+ cl_allowDownload, cl_wwwDownload - client-only; server-side effect already covered by sv_minimizeSysteminfo mode 3.
+ sv_kickGamestateLimitedClients + sv_reservedConfigstringBufferSize - need zk's "gamestate splitting for
+   multi-version support" subsystem (resourceLimitedState detection + configstring overflow splitting into
+   reliable commands). This is the ONE genuinely-absent subsystem: rev's SV_SendClientGameState is the plain
+   MAX_CONFIGSTRINGS loop with no overflow detection or splitting. Real engine work, connection-critical,
+   not portable without the full splitting logic.

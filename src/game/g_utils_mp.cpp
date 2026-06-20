@@ -673,7 +673,12 @@ int G_ModelIndex( const char *name )
 		return 0;
 	}
 
-	for ( i = 1; i < MAX_MODELS; i++ )
+	// libcod: g_reservedModels - keep N model slots free during level init for runtime precaches
+	int limit = MAX_MODELS;
+	if ( level.initializing && g_reservedModels )
+		limit -= g_reservedModels->current.integer;
+
+	for ( i = 1; i < limit; i++ )
 	{
 		s = SV_GetConfigstringConst( CS_MODELS + i );
 
@@ -690,11 +695,23 @@ int G_ModelIndex( const char *name )
 
 	if ( !level.initializing )
 	{
+		// libcod: g_safePrecache - warn + default instead of fatal scripterror
+		if ( g_safePrecache && g_safePrecache->current.boolean )
+		{
+			Com_Printf("WARNING: Model '%s' not precached\n", name);
+			return 1;
+		}
 		Scr_Error(va("model '%s' not precached", name));
 	}
 
-	if ( i == MAX_MODELS )
+	if ( i == limit )
 	{
+		// libcod: g_safePrecache - warn + default instead of fatal overflow
+		if ( g_safePrecache && g_safePrecache->current.boolean )
+		{
+			Com_Printf("WARNING: Exceeded number of models, defaulting '%s'\n", name);
+			return 1;
+		}
 		Com_Error(ERR_DROP, "G_ModelIndex: overflow");
 	}
 

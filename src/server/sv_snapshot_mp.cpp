@@ -947,7 +947,7 @@ void SV_SendClientMessages( void )
 
 #ifdef LIBCOD
 		extern int client_challenge_ping[MAX_CLIENTS];
-		for ( int j = 0; j < MAX_DOWNLOAD_WINDOW; j++ )
+		for ( int j = 0; j < sv_fastDownloadSpeed->current.integer; j++ ) // libcod: sv_fastDownloadSpeed (was MAX_DOWNLOAD_WINDOW)
 		{
 			if ( !sv_fastDownload->current.boolean || !*c->downloadName || c->downloadingWWW || c->clientDownloadingWWW || client_challenge_ping[i] > 100 )
 			{
@@ -2104,7 +2104,9 @@ void SV_BuildClientSnapshot( client_t *client )
 
 	// add all the entities directly visible to the eye, which
 	// may include portal entities that merge other viewpoints
-	SV_AddEntitiesVisibleFromPoint( org, clientNum, &entityNumbers );
+	// libcod: sv_autoAddSnapshotEntities=0 (with archive off) leaves snapshot population to script
+	if ( ( sv_autoAddSnapshotEntities && sv_autoAddSnapshotEntities->current.boolean ) || svs.archiveEnabled )
+		SV_AddEntitiesVisibleFromPoint( org, clientNum, &entityNumbers );
 
 #ifdef LIBCOD
 	// zk_libcod: force per-player addEntToSnapshots entities into this snapshot

@@ -1601,6 +1601,9 @@ int G_GetClientArchiveTime(int clientindex);
 void G_SetClientArchiveTime(int clindex, int time);
 
 void G_TraceCapsule(trace_t *results, const float *start, const float *mins, const float *maxs, const float *end, int passEntityNum, int contentmask);
+#ifdef LIBCOD
+void G_TracePoint(trace_t *results, const float *start, const float *mins, const float *maxs, const float *end, int passEntityNum, int contentmask);
+#endif
 int G_TraceCapsuleComplete(const float *start, const float *mins, const float *maxs, const float *end, int passEntityNum, int contentmask);
 void G_LocationalTrace(trace_t *results, const float *start, const float *end, int passentitynum, int contentmask, unsigned char *priorityMap);
 int G_LocationalTracePassed(const float *start, const float *end, int passEntityNum, int contentmask);

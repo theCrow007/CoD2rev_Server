@@ -1,6 +1,9 @@
 #include "qcommon.h"
 #include "cm_local.h"
 #include "../server/server.h"
+#ifdef LIBCOD
+#include "../game/g_shared.h"
+#endif
 
 #define SECTOR_HEAD 1
 
@@ -188,9 +191,34 @@ static void CM_AreaEntities_r( unsigned short nodeIndex, areaParms_t *ap )
 CM_AreaEntities
 ================
 */
+#ifdef LIBCOD
+// libcod: g_triggerMode mode 2 - collect all trigger_damage entities directly (fixes broken map damage triggers)
+static int TriggerDamageEntities(int *entityList)
+{
+	int count = 0;
+	for ( int i = 72; i < level.num_entities; i++ ) // skip reserved slots (players/clones)
+	{
+		if ( g_entities[i].classname == scr_const.trigger_damage )
+			entityList[count++] = i;
+	}
+	return count;
+}
+#endif
+
 int CM_AreaEntities( const vec3_t mins, const vec3_t maxs, int *entityList, int maxcount, int contentmask )
 {
 	areaParms_t ap;
+
+#ifdef LIBCOD
+	// libcod: g_triggerMode - 0: disable damage/touch triggers; 2: use the fixed damage-trigger collector
+	if ( g_triggerMode )
+	{
+		if ( g_triggerMode->current.integer == 0 && ( contentmask == 0x400000 || contentmask == 0x405C0008 ) )
+			return 0;
+		if ( g_triggerMode->current.integer == 2 && contentmask == 0x400000 )
+			return TriggerDamageEntities(entityList);
+	}
+#endif
 
 	ap.mins = mins;
 	ap.maxs = maxs;

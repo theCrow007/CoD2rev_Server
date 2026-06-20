@@ -691,6 +691,14 @@ void G_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, co
 	SV_Trace( results, start, mins, maxs, end, passEntityNum, contentmask, qfalse, NULL, qfalse );
 }
 
+#ifdef LIBCOD
+// libcod: g_pointTraceMovement - point (ray) trace for player movement; ignores capsule bounds
+void G_TracePoint( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask )
+{
+	SV_Trace( results, start, vec3_origin, vec3_origin, end, passEntityNum, contentmask, qtrue, NULL, qtrue );
+}
+#endif
+
 /*
 =================
 G_XAnimUpdateEnt
@@ -728,6 +736,10 @@ Advances the non-player objects in the world
 */
 void G_RunFrame( int levelTime )
 {
+#ifdef LIBCOD
+	// libcod: g_pointTraceMovement - select capsule vs point trace for player movement
+	pmoveHandlers[1].trace = ( g_pointTraceMovement && g_pointTraceMovement->current.boolean ) ? G_TracePoint : G_TraceCapsule;
+#endif
 	byte entIndex[MAX_GENTITIES];
 	int entnum;
 	trigger_info_t *trigger_info;

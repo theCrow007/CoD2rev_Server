@@ -438,6 +438,12 @@ void gsc_zk_entity_notsolidforplayer(scr_entref_t ref)
 	if ( id2 >= MAX_CLIENTS )
 		Scr_ParamError(0, va("entity %i is not a player", id2));
 
+	if ( !g_brushModelCollisionTweaks || !g_brushModelCollisionTweaks->current.boolean )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
+
 	customEntityState[id].clientMask[id2 >> 5] |= 1 << (id2 & 0x1F);
 	customEntityState[id].notSolidBrushModel = qtrue;
 
@@ -460,6 +466,12 @@ void gsc_zk_entity_solidforplayer(scr_entref_t ref)
 	int id2 = player->s.number;
 	if ( id2 >= MAX_CLIENTS )
 		Scr_ParamError(0, va("entity %i is not a player", id2));
+
+	if ( !g_brushModelCollisionTweaks || !g_brushModelCollisionTweaks->current.boolean )
+	{
+		stackPushBool(qfalse);
+		return;
+	}
 
 	customEntityState[id].clientMask[id2 >> 5] &= ~(1 << (id2 & 0x1F));
 	if ( !customEntityState[id].clientMask[0] && !customEntityState[id].clientMask[1] )
