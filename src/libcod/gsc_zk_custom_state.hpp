@@ -37,6 +37,13 @@ typedef enum
 
 typedef enum
 {
+	RESOURCE_NOT_LIMITED = 0,
+	LIMITED_GAMESTATE,
+	LIMITED_CONFIGSTRING
+} resourceLimitedState_t;
+
+typedef enum
+{
 	CUSTOM_TEAM_NONE,
 	CUSTOM_TEAM_AXIS,
 	CUSTOM_TEAM_ALLIES,
@@ -151,6 +158,13 @@ typedef struct customPlayerState_s
 	qboolean droppingBulletVisuals;
 	int droppingBulletVisualModelIndex;
 	int droppingBulletVisualTime;
+	// --- multi-version gamestate splitting ---
+	resourceLimitedState_t resourceLimitedState;
+	// --- custom sound-file playback ---
+	int   currentSoundTalker;
+	int   currentSoundIndex;     // 1-based; 0 = not playing
+	int   sentVoiceDataIndex;
+	float pendingVoiceDataFrames;
 } customPlayerState_t;
 
 typedef struct customEntityState_s

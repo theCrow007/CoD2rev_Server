@@ -186,6 +186,32 @@ void gsc_zk_entity_gettagorigin(scr_entref_t ref)
 	stackPushVector(origin);
 }
 
+void gsc_zk_entity_gettagangles(scr_entref_t ref)
+{
+	int id = ref.entnum;
+	gentity_t *ent = &g_entities[id];
+	float tagMat[4][3];
+	vec3_t angles;
+	unsigned int tagId;
+	const char *tagName;
+
+	tagId = Scr_GetConstLowercaseString(0);
+	tagName = SL_ConvertToString(tagId);
+	if ( !*tagName )
+		tagId = 0; // Defaults to the model's base orientation
+
+	if ( !G_DObjGetWorldTagMatrix(ent, tagId, tagMat) )
+	{
+		stackError("gsc_zk_entity_gettagangles() could not find tag '%s' on model '%s'", tagName, G_ModelName(ent->model));
+		stackPushUndefined();
+		return;
+	}
+
+	// tagMat rows 0-2 are the axis (rotation); convert to euler angles
+	AxisToAngles((vec3_t *)tagMat, angles);
+	stackPushVector(angles);
+}
+
 // ---- item / grenade entity accessors ----
 
 void gsc_zk_entity_getgrenadefusetime(scr_entref_t ref)

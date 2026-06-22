@@ -17,6 +17,7 @@
 #include "gsc.hpp"
 
 void gsc_zk_player_earthquakeforplayer(scr_entref_t ref);
+void gsc_zk_player_setoriginandangles(scr_entref_t ref);
 void gsc_zk_player_clienthasclientmuted(scr_entref_t ref);
 void gsc_zk_player_playfxontagforplayer(scr_entref_t ref);
 void gsc_zk_player_enablesilent(scr_entref_t ref);

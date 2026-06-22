@@ -916,6 +916,12 @@ SV_SendClientMessages
 */
 void SV_SendClientMessages( void )
 {
+#ifdef LIBCOD
+	extern void SV_DrainSoundFileResults(void);
+	extern void SV_RunCustomSounds(void);
+	SV_DrainSoundFileResults();
+	SV_RunCustomSounds();
+#endif
 	int i;
 	client_t    *c;
 	int numclients = 0;         // NERVE - SMF - net debugging

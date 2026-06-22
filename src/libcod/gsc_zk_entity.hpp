@@ -20,6 +20,7 @@ void gsc_zk_entity_getturretowner(scr_entref_t ref);
 void gsc_zk_entity_setlight(scr_entref_t ref);
 void gsc_zk_entity_hastag(scr_entref_t ref);
 void gsc_zk_entity_gettagorigin(scr_entref_t ref);
+void gsc_zk_entity_gettagangles(scr_entref_t ref);
 
 void gsc_zk_entity_getgrenadefusetime(scr_entref_t ref);
 void gsc_zk_entity_addgrenadefusetime(scr_entref_t ref);

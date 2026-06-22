@@ -962,4 +962,54 @@ void gsc_utils_remotecommand()
 	SVC_RemoteCommand(from, msg);
 }
 
+// --- getCallStack: return the current GSC call stack as [file0, line0, file1, line1, ...] ---
+// File/line are only meaningful with `developer 1` (script source buffers are kept then).
+unsigned int Scr_GetPrevSourcePos(const char *codePos, unsigned int index); // non-static in scr_parser.cpp, just undeclared
+
+static const char *stackGetPrevCodePosFileName(const char *pos, unsigned int index)
+{
+	if ( !scrVarPub.developer || !pos || !Scr_IsInScriptMemory(pos) )
+		return "";
+	return scrParserPub.sourceBufferLookup[Scr_GetSourceBuffer(pos - 1)].buf;
+}
+
+static int stackGetPrevCodePosLineNumber(const char *pos, unsigned int index)
+{
+	if ( !scrVarPub.developer || !pos || !Scr_IsInScriptMemory(pos) )
+		return 0;
+	unsigned int bufferIndex = Scr_GetSourceBuffer(pos - 1);
+	unsigned int sourcePos = Scr_GetPrevSourcePos(pos - 1, index);
+	char line[MAX_STRING_CHARS];
+	int col;
+	return Scr_GetLineInfo(scrParserPub.sourceBufferLookup[bufferIndex].sourceBuf, sourcePos, &col, line) + 1;
+}
+
+void gsc_utils_getcallstack()
+{
+	int i, j;
+
+	stackPushArray();
+	stackPushString(stackGetPrevCodePosFileName(scrVmPub.function_frame->fs.pos, 0));
+	stackPushArrayLast();
+	stackPushInt(stackGetPrevCodePosLineNumber(scrVmPub.function_frame->fs.pos, 0));
+	stackPushArrayLast();
+
+	i = scrVmPub.function_count;
+	if ( scrVmPub.function_count )
+	{
+		while ( j = i - 1, 0 < j )
+		{
+			stackPushString(stackGetPrevCodePosFileName(scrVmPub.function_frame_start[i - 1].fs.pos, scrVmPub.function_frame_start[i - 1].fs.localId == 0));
+			stackPushArrayLast();
+			stackPushInt(stackGetPrevCodePosLineNumber(scrVmPub.function_frame_start[i - 1].fs.pos, scrVmPub.function_frame_start[i - 1].fs.localId == 0));
+			stackPushArrayLast();
+			i = j;
+		}
+		stackPushString(stackGetPrevCodePosFileName(scrVmPub.function_frame_start[0].fs.pos, 1));
+		stackPushArrayLast();
+		stackPushInt(stackGetPrevCodePosLineNumber(scrVmPub.function_frame_start[0].fs.pos, 1));
+		stackPushArrayLast();
+	}
+}
+
 #endif

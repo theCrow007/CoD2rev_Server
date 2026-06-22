@@ -1,5 +1,8 @@
 #include "../qcommon/qcommon.h"
 #include "../qcommon/netchan.h"
+#ifdef LIBCOD
+#include "../libcod/gsc_zk_custom_state.hpp" // libcod: customPlayerState + resourceLimitedState
+#endif
 
 /*
 =================
@@ -506,6 +509,20 @@ void SV_ClientEnterWorld( client_t *client, usercmd_t *cmd )
 
 	// call the game begin function
 	ClientBegin(client - svs.clients);
+
+#ifdef LIBCOD
+	// libcod: sv_kickGamestateLimitedClients - drop clients whose gamestate could not be fully
+	// delivered even after the reliable-command split (resourceLimitedState == LIMITED_CONFIGSTRING).
+	if ( sv_kickGamestateLimitedClients && sv_kickGamestateLimitedClients->current.boolean &&
+	     customPlayerState[client - svs.clients].resourceLimitedState > LIMITED_GAMESTATE )
+	{
+		Com_Printf( "WARNING: Kicking client %i due to insufficient gamestate on map %s\n", (int)(client - svs.clients), sv_mapname ? sv_mapname->current.string : "" );
+		if ( client->netchan.protocol == 119 )
+			SV_DelayDropClient( client, "This map-mod combination is not supported via Game Pass" );
+		else
+			SV_DelayDropClient( client, "This map-mod combination requires a newer game version" );
+	}
+#endif
 }
 
 /*
@@ -1808,22 +1825,9 @@ void SV_SendClientGameState( client_t *client )
 	MSG_WriteByte( &msg, svc_gamestate );
 	MSG_WriteLong( &msg, client->reliableSequence );
 
-	// write the configstrings
-	for ( start = 0 ; start < MAX_CONFIGSTRINGS ; start++ )
-	{
-		if ( sv.configstrings[start][0] )
-		{
-			MSG_WriteByte( &msg, svc_configstring );
-			MSG_WriteShort( &msg, start );
-#if PROTOCOL_VERSION == 115 and defined LIBCOD
-			MSG_WriteBigString( &msg, SV_ModifyConfigstringIwdChkSum( client, start ) );
-#else
-			MSG_WriteBigString( &msg, sv.configstrings[start] );
-#endif
-		}
-	}
-
 	// write the baselines
+	// libcod: baselines are written BEFORE configstrings so msg.cursize reflects them
+	// when the old-protocol gamestate-limit check runs in the configstring loop below.
 	memset( &nullstate, 0, sizeof( nullstate ) );
 
 	for ( start = 0 ; start < MAX_GENTITIES; start++ )
@@ -1835,6 +1839,52 @@ void SV_SendClientGameState( client_t *client )
 		}
 		MSG_WriteByte( &msg, svc_baseline );
 		MSG_WriteDeltaEntity( &msg, &nullstate, base, qtrue );
+	}
+
+	// write the configstrings
+#ifdef LIBCOD
+	int clientGamestateDataCount = 0; // libcod: running configstring byte count (for old-protocol splitting)
+	customPlayerState[client - svs.clients].resourceLimitedState = RESOURCE_NOT_LIMITED;
+#endif
+	for ( start = 0 ; start < MAX_CONFIGSTRINGS ; start++ )
+	{
+		if ( sv.configstrings[start][0] )
+		{
+#ifdef LIBCOD
+			// libcod: old game versions cap the gamestate (~16KB msg) and the total configstring
+			// buffer (16000 chars). When a connecting client would exceed either, stop here and
+			// (below, after sending) queue the rest as reliable 'd' commands. 118 has no such cap.
+			int currentConfigstringSize = (int)strlen( sv.configstrings[start] );
+			if ( client->netchan.protocol != 118 )
+			{
+				// 3 = svc_configstring + index ; 10 = trailing svc_EOF + clientnum + checksumFeed + svc_EOF
+				if ( ( msg.cursize + currentConfigstringSize + 3 + 10 ) > 0x4000 )
+				{
+					Com_Printf( "Connecting player #%i ran into gamestate limit at configstring %i\n", (int)(client - svs.clients), start );
+					customPlayerState[client - svs.clients].resourceLimitedState = LIMITED_GAMESTATE;
+					break;
+				}
+				int remainingReservedBuffer = sv_reservedConfigstringBufferSize ? sv_reservedConfigstringBufferSize->current.integer : 0;
+				if ( remainingReservedBuffer < 0 ) remainingReservedBuffer = 0;
+				if ( ( clientGamestateDataCount + currentConfigstringSize + 1 ) > ( 16000 - remainingReservedBuffer ) )
+				{
+					Com_Printf( "Connecting player #%i ran into configstring limit at configstring %i\n", (int)(client - svs.clients), start );
+					customPlayerState[client - svs.clients].resourceLimitedState = LIMITED_CONFIGSTRING;
+					break;
+				}
+			}
+#endif
+			MSG_WriteByte( &msg, svc_configstring );
+			MSG_WriteShort( &msg, start );
+#if PROTOCOL_VERSION == 115 and defined LIBCOD
+			MSG_WriteBigString( &msg, SV_ModifyConfigstringIwdChkSum( client, start ) );
+#else
+			MSG_WriteBigString( &msg, sv.configstrings[start] );
+#endif
+#ifdef LIBCOD
+			clientGamestateDataCount += currentConfigstringSize + 1;
+#endif
+		}
 	}
 
 	MSG_WriteByte( &msg, svc_EOF );
@@ -1851,6 +1901,39 @@ void SV_SendClientGameState( client_t *client )
 #endif
 	// deliver this to the client
 	SV_SendMessageToClient( &msg, client );
+
+#ifdef LIBCOD
+	// libcod: gamestate splitting - if the gamestate filled up for an old-protocol client,
+	// send the remaining configstrings as reliable 'd' commands (same format as SV_SetConfigstring).
+	if ( start != MAX_CONFIGSTRINGS && customPlayerState[client - svs.clients].resourceLimitedState == LIMITED_GAMESTATE )
+	{
+		Com_DPrintf( "Queueing remaining configstrings for client %i, beginning at %i\n", (int)(client - svs.clients), start );
+		for ( ; start < MAX_CONFIGSTRINGS ; start++ )
+		{
+			if ( sv.configstrings[start][0] )
+			{
+				int remainingReservedBuffer = sv_reservedConfigstringBufferSize ? sv_reservedConfigstringBufferSize->current.integer : 0;
+				if ( remainingReservedBuffer < 0 ) remainingReservedBuffer = 0;
+				int currentConfigstringSize = (int)strlen( sv.configstrings[start] );
+				if ( ( clientGamestateDataCount + currentConfigstringSize + 1 ) > ( 16000 - remainingReservedBuffer ) )
+				{
+					Com_Printf( "WARNING: Aborting configstring queue at %i; client %i ran into configstring limit\n", start, (int)(client - svs.clients) );
+					customPlayerState[client - svs.clients].resourceLimitedState = LIMITED_CONFIGSTRING;
+					return;
+				}
+				// leave one reliable command free to avoid 'out of range reliableAcknowledge' spam
+				if ( client->reliableSequence - client->reliableAcknowledge == ( MAX_RELIABLE_COMMANDS - 1 ) )
+				{
+					Com_Printf( "WARNING: Aborting configstring queue at %i; client %i command queue is full\n", start, (int)(client - svs.clients) );
+					customPlayerState[client - svs.clients].resourceLimitedState = LIMITED_CONFIGSTRING;
+					return;
+				}
+				SV_SendServerCommand( client, SV_CMD_RELIABLE, "%c %i %s", 'd', start, sv.configstrings[start] );
+				clientGamestateDataCount += currentConfigstringSize + 1;
+			}
+		}
+	}
+#endif
 }
 
 /*

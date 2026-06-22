@@ -198,6 +198,19 @@ unsigned int FindObject( unsigned int id )
 	assert(id);
 	entryValue = &scrVarGlob.variableList[id];
 
+#ifdef LIBCOD
+	// libcod diagnostic: dump context before the opaque FindObject object-type assert.
+	// VAR_POINTER is the expected type; caller= the return address into the VM opcode/helper
+	// that passed a bad id (resolve with: addr2line -e bin/cod2rev_lnxded_x64 <caller>).
+	if ( ( (entryValue->w.status & VAR_STAT_MASK) == VAR_STAT_FREE ) ||
+	     ( (entryValue->w.type & VAR_MASK) != VAR_POINTER ) )
+	{
+		Com_Printf( "^1FindObject FAILED: id=%u type=%u status=%u name=%u (expected type VAR_POINTER=%u) caller=%p\n",
+			id, (unsigned)(entryValue->w.type & VAR_MASK), (unsigned)(entryValue->w.status & VAR_STAT_MASK),
+			(unsigned)(entryValue->w.name >> VAR_NAME_BITS), (unsigned)VAR_POINTER, __builtin_return_address(0) );
+	}
+#endif
+
 	assert((entryValue->w.status & VAR_STAT_MASK) != VAR_STAT_FREE);
 	assert((entryValue->w.type & VAR_MASK) == VAR_POINTER);
 

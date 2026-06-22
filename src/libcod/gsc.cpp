@@ -4,6 +4,7 @@
 #include "gsc_zk_weapons.hpp"
 #include "gsc_zk_level.hpp"
 #include "gsc_zk_player.hpp"
+#include "gsc_zk_sound.hpp"
 #include "match.hpp"
 #include "cod2rev_updater.hpp"
 
@@ -254,6 +255,13 @@ scr_function_t scriptFunctions[] =
 	{"pow", gsc_utils_exponent, 0}, // alias: rev's exponent == zk's pow
 	// --- end zk port ---
 	{"printf", gsc_utils_printf, 0},
+	{"getCallStack", gsc_utils_getcallstack, 0},
+#if COMPILE_CUSTOM_VOICE == 1
+	{"loadSoundFile", gsc_utils_loadsoundfile, 0},
+	{"loadSpeexFile", gsc_utils_loadspeexfile, 0},
+	{"saveSpeexFile", gsc_utils_savespeexfile, 0},
+	{"getSoundFileDuration", gsc_utils_getsoundfileduration, 0},
+#endif
 	{"printoutofband", gsc_utils_outofbandprint, 0},
 	{"getarraykeys", gsc_utils_getarraykeys, 0},
 	{"getascii", gsc_utils_getAscii, 0},
@@ -410,6 +418,7 @@ scr_method_t scriptMethods[] =
 	{"setLight", gsc_zk_entity_setlight, 0},
 	{"hasTag", gsc_zk_entity_hastag, 0},
 	{"getTagOrigin", gsc_zk_entity_gettagorigin, 0},
+	{"getTagAngles", gsc_zk_entity_gettagangles, 0},
 	{"getGrenadeFuseTime", gsc_zk_entity_getgrenadefusetime, 0},
 	{"addGrenadeFuseTime", gsc_zk_entity_addgrenadefusetime, 0},
 	{"getWeaponItemAmmo", gsc_zk_entity_getweaponitemammo, 0},
@@ -436,6 +445,13 @@ scr_method_t scriptMethods[] =
 #if LIBCOD_COMPILE_PLAYER == 1
 	// --- ported from zk_libcod (gsc_zk_player.cpp) ---
 	{"earthquakeForPlayer", gsc_zk_player_earthquakeforplayer, 0},
+	{"setOriginAndAngles", gsc_zk_player_setoriginandangles, 0},
+#if COMPILE_CUSTOM_VOICE == 1
+	{"playSoundFile", gsc_player_playsoundfile, 0},
+	{"stopSoundFile", gsc_player_stopsoundfile, 0},
+	{"isPlayingSoundFile", gsc_player_isplayingsoundfile, 0},
+	{"getRemainingSoundFileDuration", gsc_player_getremainingsoundfileduration, 0},
+#endif
 	{"clientHasClientMuted", gsc_zk_player_clienthasclientmuted, 0},
 	{"playFxOnTagForPlayer", gsc_zk_player_playfxontagforplayer, 0},
 	{"enableSilent", gsc_zk_player_enablesilent, 0},
