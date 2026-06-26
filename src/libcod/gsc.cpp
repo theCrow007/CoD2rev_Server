@@ -614,7 +614,7 @@ scr_method_t scriptMethods[] =
 //	{"getaddresstype", gsc_player_addresstype, 0},
 	{"getclientstate", gsc_player_getclientstate, 0},
 //	{"renameclient", gsc_player_renameclient, 0},
-	# keep as an alias to point to the zk libcod functions (get_userinfo, set_userinfo)
+//	 keep as an alias to point to the zk libcod functions (get_userinfo, set_userinfo)
 	{"get_userinfo", gsc_zk_player_getuserinfo, 0},
 	{"set_userinfo", gsc_zk_player_setuserinfo, 0},
 	{"printoutofband", gsc_player_outofbandprint, 0},
