@@ -262,7 +262,7 @@ The game can override any of the settings and call trap_SetUserinfo
 if desired.
 ============
 */
-void ClientUserinfoChanged( int clientNum )
+void ProcessClientUserinfoChange( int clientNum )
 {
 	char userinfo[MAX_INFO_STRING];
 	char oldname[MAX_STRING_CHARS];
@@ -310,6 +310,17 @@ void ClientUserinfoChanged( int clientNum )
 	ci->clientNum = clientNum;
 	Q_strncpyz( ci->name, client->sess.cs.name, sizeof(client->sess.cs.name) );
 	ci->team = client->sess.cs.team;
+}
+
+// Dispatcher: in LIBCOD builds the userinfo-changed hook runs FIRST (so a script can
+// intercept/veto a change before it is distributed); otherwise apply directly.
+void ClientUserinfoChanged( int clientNum )
+{
+#ifdef LIBCOD
+	hook_ClientUserinfoChanged( clientNum );
+#else
+	ProcessClientUserinfoChange( clientNum );
+#endif
 }
 
 /*

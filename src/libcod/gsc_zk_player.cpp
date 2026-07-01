@@ -1556,7 +1556,7 @@ void gsc_zk_player_renameclient(scr_entref_t ref)
 
 	Info_SetValueForKey(client->userinfo, "name", name);
 	strcpy(client->name, name);
-	ClientUserinfoChanged(id);
+	ProcessClientUserinfoChange(id);
 
 	stackPushBool(qtrue);
 }
@@ -2737,7 +2737,7 @@ void gsc_zk_player_processclientuserinfochange(scr_entref_t ref)
 		return;
 	}
 	
-	ClientUserinfoChanged(id);
+	ProcessClientUserinfoChange(id);
 	
 	stackPushBool(qtrue);
 }

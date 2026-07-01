@@ -2837,7 +2837,7 @@ void GScr_UpdateClientNames()
 		I_strncpyz(oldname, cl->sess.cs.name, sizeof(oldname));
 		I_strncpyz(cl->sess.cs.name, cl->sess.newnetname, sizeof(cl->sess.cs.name));
 
-		ClientUserinfoChanged(i);
+		ProcessClientUserinfoChange(i);
 	}
 }
 

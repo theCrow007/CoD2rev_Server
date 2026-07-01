@@ -1618,6 +1618,7 @@ void Scr_ParseGameTypeList();
 void SetClientViewAngle(gentity_s *ent, const float *angle);
 void hook_ClientUserinfoChanged(int clientNum);
 void ClientUserinfoChanged(int clientNum);
+void ProcessClientUserinfoChange(int clientNum);
 void ClientImpacts(gentity_s *ent, pmove_t *pm);
 void G_TouchTriggers(gentity_s *ent);
 DObjAnimMat* G_DObjGetLocalTagMatrix(gentity_s *ent, unsigned int tagName);

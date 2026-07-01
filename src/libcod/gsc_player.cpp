@@ -70,7 +70,7 @@ void gsc_player_clientuserinfochanged(scr_entref_t id)
 		return;
 	}
 
-	ClientUserinfoChanged(id.entnum);
+	ProcessClientUserinfoChange(id.entnum);
 	stackPushBool(qtrue);
 }
 

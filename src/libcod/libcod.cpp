@@ -782,18 +782,27 @@ qboolean zk_RemoteCommandExecute(void)
 
 void hook_ClientUserinfoChanged(int clientNum)
 {
-	if ( ! codecallback_userinfochanged)
+	// Fire the script callback BEFORE applying, so a script can rewrite or veto the
+	// change (e.g. a rename) before it is distributed. The callback owns the apply:
+	// it calls self clientUserinfoChanged() (-> ProcessClientUserinfoChange) to commit,
+	// or simply does not, to drop the change.
+	if ( Scr_IsSystemActive() && SV_Loaded() && codecallback_userinfochanged )
 	{
-		ClientUserinfoChanged(clientNum);
-		return;
+		client_t *cl = &svs.clients[clientNum];
+
+		// Not on the initial connect: the client is not script-active yet, and
+		// CodeCallback_PlayerConnect must remain the first callback it sees.
+		if ( cl->state >= CS_CONNECTED )
+		{
+			// CodeCallback_UserInfoChanged() takes no params; the player is 'self'.
+			short ret = Scr_ExecEntThread(&g_entities[clientNum], codecallback_userinfochanged, 0);
+			Scr_FreeThread(ret);
+			return;
+		}
 	}
 
-	if (!Scr_IsSystemActive())
-		return;
-
-	stackPushInt(clientNum); // one parameter is required
-	short ret = Scr_ExecEntThread(&g_entities[clientNum], codecallback_userinfochanged, 1);
-	Scr_FreeThread(ret);
+	// No callback (or VM down / connect-time): apply directly.
+	ProcessClientUserinfoChange(clientNum);
 }
 
 void SV_MasterHeartbeat_libcod(const char *hbname)
