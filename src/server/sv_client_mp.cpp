@@ -2179,9 +2179,13 @@ static void SV_UpdateUserinfo_f( client_t *cl )
 {
 	assert(cl - svs.clients >= 0 && cl - svs.clients < MAX_CLIENTS);
 	I_strncpyz(cl->userinfo, SV_Cmd_Argv(1), sizeof( cl->userinfo ));
-	SV_UserinfoChanged(cl);
-	// call prog code to allow overrides (dispatcher decides hook vs. direct apply)
+	//SV_UserinfoChanged(cl); //moved to gsc_player_clientuserinfochanged
+	// call prog code to allow overrides
+#ifdef LIBCOD
+	hook_ClientUserinfoChanged(cl - svs.clients);
+#else
 	ClientUserinfoChanged(cl - svs.clients);
+#endif
 }
 
 /*

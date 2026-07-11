@@ -69,8 +69,8 @@ void gsc_player_clientuserinfochanged(scr_entref_t id)
 		stackPushUndefined();
 		return;
 	}
-
-	ProcessClientUserinfoChange(id.entnum);
+	SV_UserinfoChanged(&svs.clients[id.entnum] ); //moved here from SV_UpdateUserinfo_f in sv_client_mp to test behaviour following IzNoGoD's suggestion
+	ClientUserinfoChanged(id.entnum);
 	stackPushBool(qtrue);
 }
 
